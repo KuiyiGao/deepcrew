@@ -1,0 +1,1549 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deepcrew</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --fg: #1b1f23; --muted: #5b6570; --line: #d0d7de; --card: #f6f8fa;
+  --accent: #1f5fd6; --accent-fg: #ffffff; --bad: #b3261e; --good: #1a7f37; --warn: #b45f00;
+  --a-orange: #C0603C; --a-gold: #A97A1F; --a-sea: #3E8FB0;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  interpolate-size: allow-keywords;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-meta: 12px; --fw-meta: 400; --lh-meta: 1.4;
+  --fs-body: 13px; --fw-body: 400; --lh-body: 1.5;
+  --fs-label: 15px; --fw-label: 600; --lh-label: 1.35;
+  --fs-section: 18px; --fw-section: 650; --lh-section: 1.3;
+  --fs-lead: 22px; --fw-lead: 600; --lh-lead: 1.3;
+  --t-meta: var(--fw-meta) var(--fs-meta)/var(--lh-meta) var(--font);
+  --t-body: var(--fw-body) var(--fs-body)/var(--lh-body) var(--font);
+  --t-label: var(--fw-label) var(--fs-label)/var(--lh-label) var(--font);
+  --t-section: var(--fw-section) var(--fs-section)/var(--lh-section) var(--font);
+  --t-lead: var(--fw-lead) var(--fs-lead)/var(--lh-lead) var(--font);
+  --t-field: var(--fw-body) var(--fs-label)/var(--lh-body) var(--font);
+}
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #14171a; --fg: #e6e9ec; --muted: #9aa5b1; --line: #343b43; --card: #1d2227;
+  --accent: #6ea0ff; --accent-fg: #0b1220; --bad: #ff8a80; --good: #5fd380; --warn: #f0a73a;
+  --a-orange: #E07A52; --a-gold: #E8B04A; --a-sea: #7FB8CF;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] {
+    color-scheme: dark;
+    --bg: #14171a; --fg: #e6e9ec; --muted: #9aa5b1; --line: #343b43; --card: #1d2227;
+    --accent: #6ea0ff; --accent-fg: #0b1220; --bad: #ff8a80; --good: #5fd380; --warn: #f0a73a;
+  --a-orange: #E07A52; --a-gold: #E8B04A; --a-sea: #7FB8CF;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: var(--t-field); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font: var(--t-lead); margin: 0; }
+h1 .path { font: var(--t-meta); color: var(--muted); margin-left: 6px; }
+h2 { font: var(--t-section); margin: 0 0 8px; }
+section { border-top: 1px solid var(--line); padding: 16px 0; }
+p { margin: 0 0 8px; }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; }
+.muted, .hint { color: var(--muted); font: var(--t-body); }
+label { display: block; font: var(--t-body); color: var(--muted); margin-bottom: 12px; }
+input[type=text], input[type=password], input[type=number], select {
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: var(--t-field); color: var(--fg);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; transition: border-color .15s, box-shadow .15s;
+}
+input[aria-invalid=true] { border-color: var(--bad); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.switch { display: flex; gap: 8px; align-items: center; color: var(--fg); font: var(--t-field); }
+label.switch input { width: 20px; height: 20px; margin: 0; }
+button {
+  font: var(--t-field); padding: 8px 14px; color: var(--fg); background: var(--card);
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s, transform .1s;
+}
+button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--fg) 35%, var(--line)); }
+button:active:not(:disabled) { transform: scale(.98); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, var(--fg)); border-color: color-mix(in srgb, var(--accent) 86%, var(--fg)); }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 4px; }
+.theme-box { position: relative; flex: none; margin-left: auto; }
+.theme { display: inline-flex; overflow: hidden; background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+.theme button { padding: 3px 11px; font: var(--t-meta); color: var(--muted); background: none; border: 0; border-radius: 0; }
+.theme button + button { border-left: 1px solid var(--line); }
+.theme button:hover:not(:disabled) { color: var(--fg); }
+.theme button[aria-pressed=true] { color: var(--accent-fg); background: var(--accent); }
+.theme button:focus-visible { outline-offset: -2px; }
+.theme-box .msg { position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; width: max-content; max-width: min(280px, 80vw); margin: 0;
+  padding: 4px 8px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; pointer-events: none; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.row input { flex: 1 1 220px; margin-top: 0; }
+.row .hint { align-self: center; margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 12px; }
+.presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.preset { text-align: left; display: block; }
+.preset small { display: block; color: var(--muted); font: var(--t-meta); margin-top: 2px; min-height: 1.35em; }
+.preset[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.msg { font: var(--t-body); color: var(--good); overflow-wrap: anywhere; }
+.msg:empty { display: none; }
+.msg.bad { color: var(--bad); }
+.msg.plain { color: var(--muted); }
+.tag { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; font: var(--t-meta); color: var(--muted); transition: color .3s, border-color .3s; }
+.tag.ok { color: var(--good); }
+.tag.bad { color: var(--bad); }
+.tag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+details { margin-top: 4px; }
+summary { cursor: pointer; color: var(--muted); margin-bottom: 10px; }
+details::details-content { block-size: 0; opacity: 0; overflow-y: clip; transition: block-size .28s var(--ease), opacity .2s, content-visibility .28s allow-discrete; }
+details[open]::details-content { block-size: auto; opacity: 1; }
+.bar { border-top: 1px solid var(--line); padding-top: 16px; }
+main [hidden], .waiting [hidden], .waiting[hidden] { display: none !important; }
+.waiting { flex: none; max-height: 40vh; overflow-y: auto; background: var(--card); border-bottom: 1px solid var(--line); border-left: 3px solid var(--accent);
+  transition: height .3s var(--ease), opacity .25s, border-width .3s, display .3s allow-discrete; }
+.waiting[hidden] { height: 0; opacity: 0; overflow: hidden; border-bottom-width: 0; border-left-width: 0; }
+@starting-style { .waiting { height: 0; opacity: 0; border-bottom-width: 0; border-left-width: 0; } }
+#waiting-asks { overflow-y: clip; transition: height .3s var(--ease), display .3s allow-discrete; }
+#waiting-asks[hidden] { height: 0; }
+@starting-style { #waiting-asks { height: 0; } }
+.waiting-in { max-width: 720px; margin: 0 auto; padding: 8px 16px; }
+.waiting h2 { font: var(--t-label); margin: 0 0 2px; }
+.rq { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.rq.leaving { pointer-events: none; }
+.rq-who { flex: 0 0 auto; font: var(--t-body); }
+.rq-who b { font: var(--t-label); }
+.rq-what { flex: 1 1 220px; min-width: 0; padding: 3px 8px; font-size: var(--fs-body); overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.rq-text { flex: 1 1 100%; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.rq-act { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rq button { padding: 4px 10px; font: var(--t-body); white-space: normal; text-align: left; }
+.rq form { display: flex; gap: 6px; flex: 1 1 220px; }
+.rq form input { flex: 1 1 140px; margin-top: 0; padding: 4px 8px; }
+.rq .msg { flex: 1 1 100%; margin: 0; }
+.rq-folder, .rq-also, .rq-review { flex: 1 1 100%; margin: 0; font: var(--t-meta); color: var(--muted); overflow-wrap: anywhere; }
+.rq-folder code { font-size: var(--fs-meta); }
+#key-local { margin: 8px 0 0; overflow-wrap: anywhere; }
+.tm-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.tm-head h2 { display: flex; align-items: center; margin: 0; }
+.tm-head .rest { margin-left: 10px; opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s, color .3s, border-color .3s; }
+.tm-head .rest.on { opacity: 1; visibility: visible; }
+.crew-btns { display: grid; justify-items: end; }
+.crew-btns > button { grid-area: 1 / 1; white-space: nowrap; transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, opacity .25s, visibility .25s, transform .1s; }
+.crew-btns > button.off { opacity: 0; visibility: hidden; pointer-events: none; }
+.tm-wait { margin: 0 0 8px; padding: 6px 10px; font: var(--t-body); background: var(--card); border-left: 3px solid var(--accent); }
+.tm-wait.limit { border-left-color: var(--warn); }
+.tm-wait a { color: var(--accent); }
+.tm-line { display: flex; flex-wrap: wrap; gap: 0 16px; margin: 0 0 4px; font: var(--t-body); }
+.tm-line span + span { color: var(--muted); }
+.tm-line .tm-price.off { color: var(--good); }
+.tm-line .tm-provider.moved { color: var(--warn); }
+.tm-money { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; margin: 0 0 8px; }
+.tm-cost { font: var(--t-lead); font-variant-numeric: tabular-nums; }
+.tm-cost.none { font: var(--t-body); color: var(--muted); }
+.tm-tokens { font: var(--t-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
+.tm-saved { font: var(--t-body); color: var(--muted); }
+.tm-saved b { font: var(--t-label); color: var(--good); font-variant-numeric: tabular-nums; transition: color .3s; }
+.tm-saved b.neg { color: var(--bad); }
+.tm-saved select { display: inline-block; width: auto; margin: 0 0 0 2px; padding: 1px 4px; font: var(--t-meta); }
+.tm-budget { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 8px; }
+.tm-budget-now { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tm-budget-text { margin: 0; font: var(--t-label); font-variant-numeric: tabular-nums; }
+.tm-budget-text.over b { color: var(--bad); }
+.tm-budget-text.none { font: var(--t-body); color: var(--muted); }
+.ring { flex: none; display: block; width: 48px; height: 48px; }
+.ring circle { fill: none; stroke-width: 3; }
+.ring .track { stroke: var(--line); }
+.ring .arc { stroke: var(--accent); stroke-dasharray: 0 100; transition: stroke-dasharray .6s var(--ease), stroke .3s; }
+.ring.near .arc { stroke: var(--warn); }
+.ring.over .arc { stroke: var(--bad); }
+.ring text { font: var(--t-meta); fill: var(--fg); text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
+.tm-budget-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tm-budget.capped .tm-budget-form { margin-left: auto; }
+.tm-budget-form label { display: flex; align-items: center; gap: 8px; margin: 0; }
+.tm-budget-form input { width: 7.5em; margin: 0; padding: 5px 8px; }
+.tm-budget-form button { padding: 5px 12px; }
+.tm-table { width: 100%; margin: 4px 0 8px; border-collapse: collapse; }
+.tm-table th { padding: 2px 6px 4px; font: var(--t-meta); color: var(--muted); text-align: left; }
+.tm-table td { padding: 4px 6px; font: var(--t-body); border-top: 1px solid var(--line); vertical-align: baseline; overflow-wrap: anywhere; }
+.tm-table th:first-child, .tm-table td:first-child { padding-left: 0; }
+.tm-table th:last-child, .tm-table td:last-child { padding-right: 0; }
+.tm-table .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tm-table .who { font: var(--t-label); }
+.tm-table .tag { margin: 0; white-space: nowrap; }
+.dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; vertical-align: 1px; border-radius: 50%; background: var(--muted); transition: background-color .35s; }
+.dot.s-active { background: var(--good); animation: beat 2s ease-out infinite; }
+.dot.s-starting { background: var(--warn); animation: blink 1.1s ease-in-out infinite; }
+.dot.s-failed { background: var(--bad); }
+.resting .dot { background: var(--muted); animation: none; }
+.tm-reach { margin: 0 0 2px; font: var(--t-meta); color: var(--muted); overflow-wrap: anywhere; }
+.tm-reach code { font-size: var(--fs-meta); }
+@media (max-width: 600px) {
+  .tm-table, .tm-table tbody, .tm-table tr, .tm-table td { display: block; }
+  .tm-table thead { display: none; }
+  .tm-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .tm-table td { padding: 0; border: 0; }
+  .tm-table td[data-l]::before { content: attr(data-l) " "; color: var(--muted); }
+  .tm-budget.capped .tm-budget-form { margin-left: 0; }
+  #team-skeleton { min-height: 420px; }
+}
+
+#team-skeleton { min-height: 320px; }
+.sk { display: block; background-color: var(--card); background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--line) 70%, transparent), transparent);
+  background-repeat: no-repeat; background-size: 40% 100%; background-position: -60% 0; border-radius: 6px; animation: sweep 1.4s linear infinite; }
+.sk-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sk-title { width: 64px; height: 24px; }
+.sk-button { width: 92px; height: 34px; }
+.sk-line { width: 58%; height: 18px; margin-bottom: 8px; }
+.sk-money { width: 76%; height: 30px; margin-bottom: 8px; }
+.sk-budget { width: 100%; height: 48px; margin-bottom: 8px; }
+.sk-row { width: 100%; height: 26px; margin-bottom: 6px; }
+#team-panel, .tm-wait, .tm-money, .tm-budget { animation: fade .35s var(--ease); }
+body.pending main > * { visibility: hidden; animation: unveil 1ms 1.5s forwards; }
+body.enter main > * { animation: rise .5s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes unveil { to { visibility: visible; } }
+@keyframes sweep { to { background-position: 160% 0; } }
+@keyframes beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes blink { 50% { opacity: .35; } }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.t-snap, html.t-snap *, html.t-snap *::before, html.t-snap *::after { transition: none !important; }
+html.t-fade, html.t-fade *, html.t-fade *::before, html.t-fade *::after {
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease, fill .3s ease, stroke .3s ease, box-shadow .3s ease !important; }
+html.paused *, html.paused *::before, html.paused *::after { animation-play-state: paused !important; }
+.crew-view { display: flex; justify-content: center; margin: 2px 0 6px; padding: 12px 8px; border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; background: var(--card); }
+.crew-view svg { display: block; max-width: 100%; height: auto; }
+.crew-cap { margin: 0 0 12px; font: var(--t-meta); color: var(--muted); }
+.dot.av, .resting .dot.av { width: auto; height: auto; margin-right: 6px; vertical-align: middle; border-radius: 0; background: none; animation: none; }
+.dot.av svg { display: block; }
+.mix { display: inline-flex; align-items: center; gap: 6px; font: var(--t-meta); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mix svg { display: block; width: 120px; height: 6px; }
+.share { display: block; height: 3px; margin: 3px 0 0 auto; background: repeating-linear-gradient(90deg, #E07A52 0 3px, transparent 3px 4px); }
+.shim { background: linear-gradient(90deg, var(--muted) calc(var(--sh, -50%) - 14%), var(--fg) var(--sh, -50%), var(--muted) calc(var(--sh, -50%) + 14%));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
+  details::details-content { transition-duration: .001ms !important; }
+  body.pending main > * { animation: unveil 1ms 1.5s forwards !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+</style>
+</head>
+<body class="pending">
+<aside class="waiting" id="waiting" aria-label="Requests" hidden>
+  <div class="waiting-in">
+    <div id="waiting-asks" hidden>
+      <h2>Waiting for you <span class="tag" id="waiting-n" aria-live="polite"></span></h2>
+      <div id="waiting-list" tabindex="-1"></div>
+    </div>
+  </div>
+</aside>
+<main>
+  <div class="top">
+    <h1>Settings <code class="path" id="envpath"></code></h1>
+    <div class="theme-box" id="theme-box">
+      <div class="theme" id="theme" role="group" aria-label="Theme">
+        <button type="button" data-pick="auto" aria-pressed="false" title="Follow the system">Auto</button>
+        <button type="button" data-pick="light" aria-pressed="false">Light</button>
+        <button type="button" data-pick="dark" aria-pressed="false">Dark</button>
+      </div>
+      <p class="msg bad" id="m-theme" role="status"></p>
+    </div>
+  </div>
+  <p class="hint" id="attached" hidden></p>
+
+  <section id="team-skeleton" aria-hidden="true" hidden>
+    <div class="sk-head"><span class="sk sk-title"></span><span class="sk sk-button"></span></div>
+    <span class="sk sk-line"></span>
+    <span class="sk sk-money"></span>
+    <span class="sk sk-budget"></span>
+    <span class="sk sk-row"></span><span class="sk sk-row"></span><span class="sk sk-row"></span>
+  </section>
+
+  <section id="team-panel" hidden>
+    <div class="tm-head">
+      <h2>Team <span class="tag warn rest" id="team-rest">Resting</span></h2>
+      <div class="crew-btns">
+        <button type="button" class="off" id="crew-stop" title="Rests the crew: every member process ends. The team, this page and the leader stay. Resume crew lets them work again.">Rest crew</button>
+        <button type="button" class="primary off" id="crew-resume">Resume crew</button>
+      </div>
+    </div>
+    <p class="msg" id="m-team" role="status"></p>
+    <p class="tm-wait" id="team-wait" hidden></p>
+    <p class="tm-wait limit" id="budget-wait" role="status" hidden></p>
+    <p class="tm-line"><span id="team-status"></span><span id="team-tasks"></span><span class="tm-provider" id="team-provider" hidden></span><span class="tm-price" id="team-price" hidden></span></p>
+    <p class="tm-money" id="team-money" hidden><span class="tm-cost" id="team-cost"></span><span class="tm-tokens" id="team-tokens"><span id="tk-in"></span> in, <span id="tk-out"></span> out, <span id="tk-cache"></span> cache read</span>
+      <span class="mix" id="team-mix" hidden></span>
+      <span class="tm-saved" id="team-saved" hidden><span id="team-saved-l">saved</span> <b id="team-saved-n"></b> vs
+        <select id="team-cmp" aria-label="Compare with this Claude model"></select></span></p>
+    <div class="tm-budget" id="team-budget" hidden>
+      <div class="tm-budget-now" id="budget-now">
+        <span id="budget-ring-wrap" hidden>
+          <svg class="ring" id="budget-ring" viewBox="0 0 48 48" role="img" aria-label="Share of the budget spent">
+            <circle class="track" cx="24" cy="24" r="21.5"></circle>
+            <circle class="arc" id="budget-arc" cx="24" cy="24" r="21.5" pathLength="100" transform="rotate(-90 24 24)"></circle>
+            <text id="budget-pct" x="24" y="24"></text>
+          </svg>
+        </span>
+        <p class="tm-budget-text" id="budget-text"><b id="budget-spent"></b> of <span id="budget-cap"></span></p>
+        <p class="tm-budget-text none" id="budget-none" hidden></p>
+      </div>
+      <form class="tm-budget-form" id="budget-form" autocomplete="off" novalidate>
+        <label>Budget <input type="number" id="budget-usd" min="0.01" step="0.01" inputmode="decimal" placeholder="No limit"></label>
+        <button type="submit" id="budget-set">Set</button>
+        <button type="button" id="budget-clear" hidden>Clear</button>
+      </form>
+    </div>
+    <div id="team-members"></div>
+    <div id="team-reach"></div>
+  </section>
+
+  <section>
+    <h2>API key <span class="tag" id="keystatus"></span></h2>
+    <form id="keyform" autocomplete="off">
+      <div class="row">
+        <input id="key" type="password" autocomplete="new-password" spellcheck="false" placeholder="Paste a key" aria-label="API key">
+        <button type="submit">Save key</button>
+        <button type="button" id="check">Check</button>
+      </div>
+    </form>
+    <p class="msg" id="m-key" role="status"></p>
+    <p class="muted" id="key-local"></p>
+  </section>
+
+  <section>
+    <h2 title="One click sets the model, the permissions and the team size below">Presets</h2>
+    <div class="crew-view" id="crew-view" title="The boat is the leader, your Claude Code. Each diver is a member that may run at once."></div>
+    <p class="crew-cap" id="crew-cap"></p>
+    <div class="presets" id="setups"></div>
+    <p class="msg" id="m-setup" role="status"></p>
+  </section>
+
+  <section>
+    <h2>Model</h2>
+    <div class="presets" id="strengths"></div>
+    <p class="msg" id="m-strength" role="status"></p>
+    <details>
+      <summary>Custom</summary>
+      <div class="grid">
+        <label>Provider <select id="provider" data-key="DEEPCREW_PROVIDER"></select></label>
+        <label>Model <select id="model" data-key="DEEPCREW_MODEL"></select></label>
+        <label>Effort <select id="effort" data-key="DEEPCREW_EFFORT"></select></label>
+        <label title="Claude Code asks the model to think before it answers; off is faster and writes fewer tokens">Thinking
+          <select data-key="DEEPCREW_THINKING"><option value="on">on</option><option value="off">off</option></select></label>
+        <label title="Members read the project's CLAUDE.md, as your own Claude Code does">Project CLAUDE.md
+          <select data-key="DEEPCREW_PROJECT_MEMORY"><option value="on">members read it</option><option value="off">not given</option></select></label>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2 title="What members' shell commands may do. File writes always stay in the member's own region.">Permissions</h2>
+    <div class="presets" id="scopes"></div>
+    <p class="msg" id="m-scope" role="status"></p>
+    <details>
+      <summary>Advanced</summary>
+      <label class="switch"><input type="checkbox" role="switch" data-key="DEEPCREW_SANDBOX"> Sandbox</label>
+      <label class="switch" title="A cheap model on your provider looks at each shell command that would ask first: routine work on the project runs, everything else still comes to you or the leader"><input type="checkbox" role="switch" data-key="DEEPCREW_REVIEW"> Reviewer</label>
+      <label title="Empty: package registries. none: no network. Otherwise host names, comma-separated.">Network
+        <input type="text" data-key="DEEPCREW_SANDBOX_DOMAINS" placeholder="package registries">
+      </label>
+      <label title="Run without asking, comma-separated. Commands that run code (python3, make, pytest) need the sandbox on.">Allowed commands
+        <input type="text" data-key="DEEPCREW_ALLOW" placeholder="none">
+      </label>
+    </details>
+  </section>
+
+  <section>
+    <h2>Team size</h2>
+    <div class="presets" id="sizes"></div>
+    <p class="msg" id="m-size" role="status"></p>
+    <details>
+      <summary>Advanced</summary>
+      <div class="grid">
+        <label>Active members <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_MAX_ACTIVE"></label>
+        <label>Idle hold (s) <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_HOLD_S"></label>
+        <label>Max turns <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_MAX_TURNS"></label>
+        <label>Approval timeout (s) <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_APPROVAL_TIMEOUT_S"></label>
+        <label>Question timeout (s) <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_QUESTION_TIMEOUT_S"></label>
+        <label>Tasks per offer <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_OFFER_SIZE"></label>
+        <label>Note limit (chars) <input type="number" min="1" step="1" inputmode="numeric" data-key="DEEPCREW_NOTE_MAX_CHARS"></label>
+      </div>
+    </details>
+  </section>
+
+  <div class="bar">
+    <div class="row">
+      <button type="button" class="primary" id="save">Save</button>
+      <button type="button" id="done">Done</button>
+      <span class="hint" id="doneHint">Applies to teams created from now on.</span>
+    </div>
+    <p class="msg" id="m-save" role="status"></p>
+  </div>
+</main>
+
+<script>
+"use strict";
+const token = new URLSearchParams(location.search).get("t") || "";
+const $ = (selector) => document.querySelector(selector);
+const fields = [...document.querySelectorAll("[data-key]")];
+const changed = () => document.dispatchEvent(new CustomEvent("deepcrew:changed"));
+const OFF = ["off", "0", "false", "no"];
+const KINDS = ["strength", "size", "scope"];
+let tables = {strength: {}, size: {}, scope: {}, setup: {}};
+let defaults = {};
+let filled = {};
+let keychain = false;
+let envFile = "";
+let loaded = 0;
+let team = null;
+const TEAM_LABEL = {max_active: "active members", hold_s: "idle hold", max_turns: "max turns", approval_timeout_s: "approval timeout",
+  question_timeout_s: "question timeout", offer_size: "tasks per offer", note_max_chars: "note limit", project_memory: "project CLAUDE.md", review: "reviewer",
+  provider: "provider",
+};
+
+async function api(path, body) {
+  const post = body !== undefined;
+  const reply = await fetch(path, {
+    method: post ? "POST" : "GET",
+    headers: post ? {"X-Deepcrew-Token": token, "Content-Type": "application/json"} : {"X-Deepcrew-Token": token},
+    body: post ? JSON.stringify(body) : undefined,
+  });
+  let data = {};
+  try { data = await reply.json(); } catch (_) { }
+  if (!reply.ok) throw new Error(data.error || "HTTP " + reply.status);
+  return data;
+}
+
+const doc = document.documentElement;
+const motion = matchMedia("(prefers-reduced-motion: reduce)");
+const noMotion = () => motion.matches || document.hidden;
+const EASE = "cubic-bezier(.2, .8, .2, 1)";
+const TWEEN_MS = 600;
+const tweens = new Set();
+let tweenFrame = 0;
+
+function stepTweens(now) {
+  tweenFrame = 0;
+  for (const t of tweens) {
+    const u = Math.min(1, (now - t.t0) / TWEEN_MS);
+    t.shown = t.from + (t.to - t.from) * (1 - Math.pow(1 - u, 3));
+    t.el.textContent = t.format(t.shown);
+    if (u >= 1) tweens.delete(t);
+  }
+  if (tweens.size) tweenFrame = requestAnimationFrame(stepTweens);
+}
+
+function count(el, value, format) {
+  const t = el._count || (el._count = {el, shown: null, to: null, from: 0, t0: 0, format});
+  t.format = format;
+  if (t.to === value) return;
+  t.to = value;
+  if (t.shown === null || noMotion()) {
+    t.shown = value;
+    tweens.delete(t);
+    el.textContent = format(value);
+    return;
+  }
+  t.from = t.shown;
+  t.t0 = performance.now();
+  tweens.add(t);
+  if (!tweenFrame) tweenFrame = requestAnimationFrame(stepTweens);
+}
+
+function uncount(el) {
+  if (el._count) tweens.delete(el._count);
+  el._count = null;
+}
+
+function settle() {
+  for (const t of tweens) { t.shown = t.to; t.el.textContent = t.format(t.to); }
+  tweens.clear();
+}
+
+function fade(el) {
+  if (noMotion() || !el.animate) return;
+  el.animate([{opacity: 0, transform: "translateY(-3px)"}, {opacity: 1, transform: "none"}], {duration: 220, easing: EASE});
+}
+
+function grow(el) {
+  if (noMotion() || !el.animate) return;
+  const cs = getComputedStyle(el), full = el.offsetHeight;
+  el.style.overflow = "hidden";
+  const a = el.animate([{height: "0px", paddingTop: "0px", paddingBottom: "0px", borderTopWidth: "0px", opacity: 0},
+    {height: full + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, opacity: 1}], {duration: 260, easing: EASE});
+  a.onfinish = a.oncancel = () => { el.style.overflow = ""; };
+}
+
+function fold(el) {
+  if (noMotion() || !el.animate || !el.isConnected) { el.remove(); return; }
+  const cs = getComputedStyle(el);
+  el.classList.add("leaving");
+  el.style.overflow = "hidden";
+  const a = el.animate([{height: el.offsetHeight + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, opacity: 1},
+    {height: "0px", paddingTop: "0px", paddingBottom: "0px", borderTopWidth: "0px", opacity: 0}], {duration: 220, easing: EASE, fill: "forwards"});
+  a.onfinish = a.oncancel = () => el.remove();
+}
+
+function pauseMotion() {
+  doc.classList.toggle("paused", document.hidden);
+  if (document.hidden) settle();
+}
+document.addEventListener("visibilitychange", pauseMotion);
+pauseMotion();
+
+let revealed = false;
+function reveal() {
+  if (revealed) return;
+  revealed = true;
+  const shown = [...$("main").children].filter((el) => !el.hidden);
+  shown.forEach((el, i) => el.style.setProperty("--i", String(i)));
+  document.body.classList.replace("pending", "enter");
+  setTimeout(() => document.body.classList.remove("enter"), 800 + shown.length * 60);
+}
+
+const PixelCrew = (() => {
+  const NS = "http://www.w3.org/2000/svg", FRAME_MS = 60, W = 24, H = 20, EYE = "#F5F4EF", BUBBLE = "#9FD3E6", RED = "#C0603C";
+  const BODY = ["....oooooooo....", "..oooooooooooo..", ".ooovvvvvvvvooo.", ".oovvvvvvvvvvoo.", "boovvvvvvvvvvoob", "boovvvvvvvvvvoob",
+    ".oovvvvvvvvvvoo.", ".ooovvvvvvvvooo.", "..oooooooooooo..", "....cccccccc....", "..oooooosooooo..", ".ooooosososoooo.",
+    ".oooooosssooooo.", ".ooooosososoooo.", ".oo.oooosooo.oo.", "....ooo..ooo...."];
+  const EYES = {
+    front: [[5, 4], [6, 4], [5, 5], [6, 5], [9, 4], [10, 4], [9, 5], [10, 5]], left: [[4, 4], [5, 4], [4, 5], [5, 5], [8, 4], [9, 4], [8, 5], [9, 5]],
+    right: [[6, 4], [7, 4], [6, 5], [7, 5], [10, 4], [11, 4], [10, 5], [11, 5]], up: [[5, 3], [6, 3], [5, 4], [6, 4], [9, 3], [10, 3], [9, 4], [10, 4]],
+    happy: [[6, 4], [5, 5], [7, 5], [10, 4], [9, 5], [11, 5]], closed: [[5, 5], [6, 5], [9, 5], [10, 5]],
+  };
+  const run = (x0, x1, y, c) => Array.from({length: x1 - x0 + 1}, (_, i) => [x0 + i, y, c]);
+  const wrench = (dx, dy) => [[19 + dx, 11 + dy, "#CFCBC1"], [21 + dx, 11 + dy, "#CFCBC1"], ...run(19 + dx, 21 + dx, 12 + dy, "#CFCBC1"),
+    ...[13, 14, 15, 16, 17].map((y) => [20 + dx, y + dy, "#CFCBC1"])];
+  const PROPS = {
+    tool: wrench(0, 0), toolUp: wrench(-1, -2),
+    z: [...run(18, 21, 0, "#8E8C86"), [20, 1, "#8E8C86"], [19, 2, "#8E8C86"], ...run(18, 21, 3, "#8E8C86")],
+    alert: [[20, 0, "#E8B04A"], [20, 1, "#E8B04A"], [20, 3, "#E8B04A"]],
+    mail: [...[14, 15, 16, 17, 18].flatMap((y) => run(17, 23, y, EYE)), [17, 14, RED], [23, 14, RED], [18, 15, RED], [22, 15, RED], [19, 16, RED], [21, 16, RED], [20, 17, RED]],
+    lens: [...run(20, 22, 10, EYE), ...run(20, 22, 14, EYE), ...[11, 12, 13].flatMap((y) => [[19, y, EYE], [23, y, EYE], ...run(20, 22, y, "#7FB8CF")]),
+      [19, 15, "#8E8C86"], [19, 16, "#8E8C86"], [19, 17, "#8E8C86"]],
+  };
+  const SUITS = {
+    fast: ["#E07A52", "#A9512F", EYE, EYE], strong: ["#E07A52", "#A9512F", "#E8B04A", "#E8B04A"], strongest: ["#E8B04A", "#A97A1F", EYE, EYE],
+    idle: ["#CFCBC1", "#8E8C86", "#77746D", "#E07A52"], failed: [RED, "#7A3A22", "#77746D", EYE],
+  };
+  const hold = (pose, n) => Array(n).fill(pose);
+  const LOOPS = {
+    active: [...hold({eyes: "front", prop: "tool"}, 5), ...hold({eyes: "front", prop: "toolUp"}, 3), ...hold({eyes: "front", prop: "tool"}, 5),
+      ...hold({eyes: "right", prop: "toolUp"}, 3), ...hold({eyes: "right", prop: "tool"}, 8)],
+    starting: [...hold({eyes: "up"}, 6), ...hold({eyes: "front", dy: -1}, 6)],
+    waiting: [...hold({eyes: "up", prop: "alert"}, 10), ...hold({eyes: "up"}, 6)],
+    idle: [...hold({eyes: "closed", prop: "z"}, 16), ...hold({eyes: "closed"}, 16)],
+    failed: [{eyes: "closed"}],
+    calm: [...hold({eyes: "front"}, 60), ...hold({eyes: "closed"}, 2)],
+    ready: [...hold({eyes: "front"}, 50), ...hold({eyes: "closed"}, 2), ...hold({eyes: "front"}, 30), ...hold({eyes: "left"}, 8),
+      ...hold({eyes: "front"}, 24), ...hold({eyes: "right"}, 8)],
+  };
+  const ONCE = {
+    done: [...hold({eyes: "happy", dy: 1}, 2), ...hold({eyes: "happy", dy: -1}, 3), {eyes: "happy"}, ...hold({eyes: "happy", dy: 1}, 2),
+      ...hold({eyes: "happy", dy: -1}, 3), {eyes: "front"}],
+    look: [...hold({eyes: "right"}, 5), ...hold({eyes: "left"}, 5), {eyes: "front"}],
+    mail: hold({eyes: "happy", prop: "mail"}, 14), read: hold({eyes: "right", prop: "lens"}, 14), ask: hold({eyes: "up", prop: "alert"}, 14),
+    work: [...hold({eyes: "front", prop: "toolUp"}, 2), ...hold({eyes: "front", prop: "tool"}, 2), ...hold({eyes: "front", prop: "toolUp"}, 2),
+      ...hold({eyes: "front", prop: "tool"}, 2)],
+  };
+  const STILL = {active: {eyes: "front", prop: "tool"}, starting: {eyes: "up"}, waiting: {eyes: "up", prop: "alert"}, idle: {eyes: "closed", prop: "z"},
+    failed: {eyes: "closed"}, calm: {eyes: "front"}, ready: {eyes: "front"}};
+  const BUBBLY = new Set(["active", "ready"]);
+  const still = () => motion.matches;
+  const mk = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const cache = new Map();
+
+  function trace(px, w, h) {
+    const by = {};
+    for (const [at, c] of px) {
+      const [x, y] = at.split(",").map(Number);
+      if (x >= 0 && y >= 0 && x < w && y < h) (by[c] = by[c] || []).push("M" + x + " " + y + "h1v1h-1z");
+    }
+    return Object.entries(by).map(([c, d]) => [c, d.join("")]);
+  }
+  function diverPaths(suit, pose, bubble) {
+    const key = suit.join() + "|" + pose.eyes + "|" + (pose.prop || "") + "|" + (pose.dy || 0) + "|" + bubble;
+    if (cache.has(key)) return cache.get(key);
+    const pal = {o: suit[0], b: suit[1], c: suit[2], s: suit[3], v: "#1A1918"}, px = new Map(), dy = pose.dy || 0;
+    BODY.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") px.set(4 + x + "," + (4 + y + dy), pal[ch]); }));
+    for (const [x, y] of EYES[pose.eyes] || EYES.front) px.set(4 + x + "," + (4 + y + dy), EYE);
+    for (const [x, y, c] of PROPS[pose.prop] || []) px.set(x + "," + (y + dy), c);
+    if (bubble >= 0) for (const [x, y] of [[19 + (bubble % 2), 5 - bubble], [21, 9 - bubble]]) px.set(x + "," + y, BUBBLE);
+    const out = trace(px, W, H);
+    if (cache.size > 600) cache.clear();
+    cache.set(key, out);
+    return out;
+  }
+
+  const live = new Set();
+  let raf = 0, last = 0;
+  function tick(now) {
+    raf = 0;
+    if (document.hidden || still()) return;
+    const f = Math.floor(now / FRAME_MS);
+    if (f !== last) {
+      last = f;
+      for (const s of live) if (!s.el.isConnected) live.delete(s); else if (s.seen) s.frame(f);
+    }
+    if (live.size) raf = requestAnimationFrame(tick);
+  }
+  const wake = () => { if (!raf && live.size && !document.hidden && !still()) raf = requestAnimationFrame(tick); };
+  document.addEventListener("visibilitychange", wake);
+  motion.addEventListener("change", () => { for (const s of live) s.frame(last); wake(); });
+  const watch = typeof IntersectionObserver === "function"
+    ? new IntersectionObserver((entries) => { for (const e of entries) if (e.target.sprite) e.target.sprite.seen = e.isIntersecting; }) : null;
+
+  class Sprite {
+    constructor(w, h, size, attrs) {
+      this.el = mk("svg", {viewBox: "0 0 " + w + " " + h, width: w * size, height: h * size, "shape-rendering": "crispEdges",
+        "aria-hidden": "true", class: "px", ...attrs});
+      this.el.sprite = this;
+      this.paths = [];
+      this.seen = true;
+      if (watch) watch.observe(this.el);
+    }
+    start() { live.add(this); this.frame(last); wake(); return this; }
+    paint(list) {
+      while (this.paths.length < list.length) this.paths.push(this.el.appendChild(mk("path")));
+      this.paths.forEach((p, i) => {
+        const [c, d] = list[i] || ["", ""];
+        if (p.drawn !== d) { p.setAttribute("d", d); p.drawn = d; }
+        if (p.fill !== c) { p.setAttribute("style", c ? "fill:" + c : ""); p.fill = c; }
+      });
+    }
+  }
+
+  class Diver extends Sprite {
+    constructor({suit = "fast", color = null, size = 2, state = "ready", attrs = {}} = {}) {
+      super(W, H, size, attrs);
+      Object.assign(this, {suitName: suit, color, state, seq: null, at: 0, glow: 0, goal: 0, shown: null});
+      this.start();
+    }
+    set(state) { if (state !== this.state) { this.state = state; this.frame(last, true); } return this; }
+    suit(name) { if (name !== this.suitName) { this.suitName = name; this.frame(last, true); } return this; }
+    play(name) { if (!still() && ONCE[name]) { this.seq = ONCE[name]; this.at = 0; wake(); } return this; }
+    tint(x) { this.goal = Math.max(0, Math.min(1, x)); if (still()) this.glow = this.goal; wake(); return this; }
+    colors() {
+      const own = this.color ? [this.color, "color-mix(in srgb, " + this.color + " 62%, #000)", EYE, EYE] : SUITS[this.suitName] || SUITS.fast;
+      const base = this.state === "idle" || this.state === "failed" ? SUITS[this.state] : own;
+      const t = Math.round(this.glow * 20) / 20;
+      return t ? [0, 1].map((i) => "color-mix(in srgb, " + base[i] + " " + Math.round(100 - t * 70) + "%, " + RED + ")").concat(base.slice(2)) : base;
+    }
+    frame(f, again = false) {
+      let pose;
+      if (this.seq && !again) { pose = this.seq[this.at++]; if (this.at >= this.seq.length) this.seq = null; }
+      if (!pose) pose = still() ? STILL[this.state] || STILL.ready : (LOOPS[this.state] || LOOPS.ready)[f % (LOOPS[this.state] || LOOPS.ready).length];
+      if (this.glow !== this.goal) {
+        const d = this.goal - this.glow;
+        this.glow = Math.abs(d) < 0.01 ? this.goal : this.glow + d * 0.1;
+      }
+      const bubble = !still() && BUBBLY.has(this.state) && !this.seq ? Math.floor(f / 3) % 10 : -1;
+      this.paint(diverPaths(this.colors(), pose, bubble));
+    }
+  }
+
+  const BOAT = ["........fff....", "........ff.....", "........m......", "...cccc.m......", "hhhhhhhhhhhhhhh", ".hhhhhhhhhhhhh.", "..hhhhhhhhhhh.."];
+  const LOCK = [".ggg.", "g...g", "ggggg", "gg.gg", "ggggg"];
+  const INK = "var(--muted)", SEA = "var(--a-sea)", SAND = "color-mix(in srgb, var(--a-gold) 30%, var(--card))";
+  const ART = {f: "var(--a-orange)", m: INK, h: INK, c: "color-mix(in srgb, var(--muted) 45%, var(--card))", g: "var(--a-gold)"};
+  function picture(host, {size = 1, suit = "fast", sandbox = false, network = true} = {}) {
+    const n = Math.max(1, Math.min(32, size)), cols = Math.min(n, 8), rows = Math.ceil(n / 8), sig = [n, suit, sandbox, network].join();
+    const old = host.picture;
+    if (old && old.sig === sig) return;
+    const cheer = old ? last : null, worn = SUITS[suit] || SUITS.fast;
+    const pal = {o: worn[0], b: worn[1], c: worn[2], s: worn[3], v: "#1A1918"};
+    const gw = cols * 20 - 4, W = Math.max(gw + 18, 48), cx = Math.floor(W / 2), gx = Math.floor((W - gw) / 2);
+    const top = 12, gy = 16, end = gy + (rows - 1) * 20 + 15, H = end + 5, left = gx - 4, right = gx + gw + 3;
+    const draw = (f) => {
+      const px = new Map(), set = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) px.set(x + "," + y, c); };
+      const stamp = (rows, x0, y0, colors) => rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") set(x0 + x, y0 + y, colors[ch]); }));
+      const moving = f !== null, roll = moving ? Math.floor(f / 8) : 0, bob = moving && Math.floor(f / 24) % 2 ? 1 : 0;
+      for (let x = 0; x < W; x++) { set(x, 5, SEA); if ((x + roll) % 9 === 0) set(x, 4, SEA); }
+      stamp(BOAT, cx - 8, bob, ART);
+      for (let y = 8; y < (sandbox && !network ? top - 2 : gy - 2); y += 2) set(cx, y, INK);
+      if (sandbox) {
+        for (let x = left + 1; x < right; x++) { if (!network || Math.abs(x - cx) > 3) set(x, top, INK); set(x, end + 2, INK); }
+        for (let y = top + 1; y < end + 2; y++) { set(left, y, INK); set(right, y, INK); }
+        if (!network) stamp(LOCK, cx - 2, top - 2, ART);
+      }
+      for (let x = 0; x < W; x++) { set(x, H - 1, SAND); if ((x * 7) % 11 < 4) set(x, H - 2, SAND); }
+      for (let i = 0; i < n; i++) {
+        const ox = gx + (i % 8) * 20, oy = gy + Math.floor(i / 8) * 20, at = cheer !== null && moving ? f - cheer - i * 2 : -1;
+        const glad = at >= 0 && at < ONCE.done.length;
+        const pose = !moving ? STILL.ready : glad ? ONCE.done[at] : LOOPS.ready[(f + i * 37) % LOOPS.ready.length], dy = pose.dy || 0;
+        stamp(BODY, ox, oy + dy, pal);
+        for (const [x, y] of EYES[pose.eyes] || EYES.front) set(ox + x, oy + y + dy, EYE);
+        const phase = moving && !glad ? (Math.floor(f / 5) + i * 7) % 16 : 16;
+        if (phase < 3) set(ox + 12 + (phase % 2), oy - 1 - phase, BUBBLE);
+      }
+      return px;
+    };
+    const art = new Sprite(W, H, 2, {class: "px"});
+    let shown = "";
+    art.sig = sig;
+    art.frame = (f) => {
+      const g = still() ? null : f, key = g === null ? "still" : String(Math.floor(g / 2));
+      if (key === shown) return;
+      shown = key;
+      art.paint(trace(draw(g), W, H));
+    };
+    art.fit = () => {
+      const dpr = globalThis.devicePixelRatio || 1, w = Number(host.clientWidth) || 0;
+      let d = Math.round(1.5 * dpr);
+      if (w) d = Math.max(1, Math.min(d, Math.floor(((w - 16) * dpr) / W)));
+      art.el.setAttribute("width", (W * d) / dpr);
+      art.el.setAttribute("height", (H * d) / dpr);
+    };
+    host.replaceChildren(art.el);
+    host.picture = art;
+    art.fit();
+    if (!host.fitted) { host.fitted = true; addEventListener("resize", () => host.picture.fit()); }
+    if (old) live.delete(old);
+    art.frame(last);
+    if (!still()) { live.add(art); wake(); }
+  }
+
+  const shining = new Set();
+  const shine = {el: {isConnected: true}, seen: true, frame: (f) => {
+    if (!shining.size) live.delete(shine);
+    for (const el of shining) {
+      if (!el.isConnected) { shining.delete(el); continue; }
+      const span = (el.textContent || "").length + 20;
+      el.style.setProperty("--sh", ((Math.floor((f * FRAME_MS) / 200) % span) - 10) / Math.max(1, span - 20) * 100 + "%");
+    }
+  }};
+  function shimmer(el, on) {
+    el.classList.toggle("shim", !!on && !still());
+    if (on && !still()) { shining.add(el); live.add(shine); wake(); } else shining.delete(el);
+  }
+  return {Diver, picture, shimmer, SUITS, FRAME_MS};
+})();
+
+const THEMES = ["auto", "light", "dark"];
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+let theme = THEMES.includes(doc.dataset.theme) ? doc.dataset.theme : "auto";
+let savedTheme = theme;
+let themeSeq = 0;
+let themePending = 0;
+const effective = (name) => (name === "auto" ? (systemDark.matches ? "dark" : "light") : name);
+
+function paintTheme() {
+  doc.dataset.theme = theme;
+  for (const button of document.querySelectorAll("#theme button")) button.setAttribute("aria-pressed", String(button.dataset.pick === theme));
+}
+
+function showTheme(name, origin) {
+  if (name === theme) return;
+  const before = theme;
+  theme = name;
+  if (effective(name) === effective(before) || noMotion()) { paintTheme(); return; }
+  if (!origin || !document.startViewTransition) {
+    doc.classList.add("t-fade");
+    paintTheme();
+    setTimeout(() => doc.classList.remove("t-fade"), 320);
+    return;
+  }
+  const box = origin.getBoundingClientRect(), x = box.left + box.width / 2, y = box.top + box.height / 2;
+  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  doc.classList.add("t-snap");
+  const view = document.startViewTransition(paintTheme);
+  view.ready.then(() => doc.animate({clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`]},
+    {duration: 400, easing: "ease-in-out", pseudoElement: "::view-transition-new(root)"})).catch(() => { });
+  view.finished.finally(() => doc.classList.remove("t-snap"));
+}
+
+async function chooseTheme(name, button) {
+  if (name === theme) return;
+  const mine = ++themeSeq;
+  say("m-theme", "");
+  showTheme(name, button);
+  themePending += 1;
+  try {
+    const reply = await api("/api/theme", {theme: name});
+    savedTheme = THEMES.includes(reply.theme) ? reply.theme : name;
+  } catch (e) {
+    if (mine === themeSeq) {
+      showTheme(savedTheme);
+      say("m-theme", oneLine(e.message, 120), true);
+      setTimeout(() => { if (mine === themeSeq) say("m-theme", ""); }, 6000);
+    }
+  } finally {
+    themePending -= 1;
+  }
+}
+
+function followTheme(name) {
+  if (!THEMES.includes(name)) return;
+  savedTheme = name;
+  if (!themePending && name !== theme) showTheme(name);
+}
+
+$("#theme").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-pick]");
+  if (button) chooseTheme(button.dataset.pick, button);
+});
+paintTheme();
+
+function say(id, text, bad, plain) {
+  const el = $("#" + id);
+  el.textContent = text || "";
+  el.classList.toggle("bad", !!bad);
+  el.classList.toggle("plain", !bad && !!plain);
+  if (text) fade(el);
+}
+
+function teamLine(reply) {
+  if (!team) return "";
+  if (reply.sync_error) return " The team was not updated: " + reply.sync_error;
+  const parts = Object.entries(reply.changed || {}).map(([key, [before, now]]) => {
+    if (key === "sandbox") return before && now ? "sandbox rules" : "sandbox " + (now ? "on" : "off");
+    if (key === "bash_allow") return (now || []).length + " allowed commands";
+    if (key === "tools") return (now || []).length + " tools";
+    if (key === "member") return memberChange(before || {}, now || {});
+    if (key === "fallback") return "backups " + ((now || []).join(", ") || "none");
+    return (TEAM_LABEL[key] || key) + " " + (typeof now === "boolean" ? (now ? "on" : "off") : now);
+  });
+  return parts.length ? " Team updated: " + parts.join(", ") + "." : "";
+}
+
+function memberChange(before, now) {
+  const model = (m) => String(m.model || "").replace(/\[.*\]$/, ""), thinking = (m) => (m.thinking === false ? "off" : "on");
+  const parts = [before.model !== now.model ? "model " + model(now) : "", (before.effort || "") !== (now.effort || "") ? "effort " + (now.effort || "default") : "",
+    thinking(before) !== thinking(now) ? "thinking " + thinking(now) : ""].filter(Boolean);
+  return parts.join(", ") || "model " + model(now) + (now.effort ? " " + now.effort : "");
+}
+
+function refusal(message) {
+  const key = (message.match(/^(DEEPCREW_[A-Z_]+)/) || [])[1];
+  for (const el of fields) el.setAttribute("aria-invalid", String(el.dataset.key === key));
+  const field = key && fields.find((el) => el.dataset.key === key), label = field && field.closest("label");
+  const name = label ? [...label.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim() : "";
+  return name ? name + message.slice(key.length) : message;
+}
+
+function options(select, items, chosen) {
+  if ([...select.options].map((o) => o.value).join("\n") !== items.join("\n")) select.replaceChildren(...items.map((item) => new Option(item, item)));
+  if (items.includes(chosen)) select.value = chosen;
+}
+
+function fill(values, onlyGiven) {
+  for (const el of fields) {
+    const key = el.dataset.key;
+    if (onlyGiven && !(key in values)) continue;
+    const value = values[key] ?? (el.type === "number" ? undefined : defaults[key]);
+    if (el.type === "checkbox") el.checked = !OFF.includes(String(value ?? "on").toLowerCase());
+    else if (el.tagName === "SELECT") { if ([...el.options].some((o) => o.value === value)) el.value = value; }
+    else el.value = value ?? "";
+    if (el.type === "number") el.placeholder = defaults[key] || "";
+  }
+  const now = form();
+  for (const el of fields) if (!onlyGiven || el.dataset.key in values) filled[el.dataset.key] = now[el.dataset.key];
+}
+
+function form() {
+  const out = {};
+  for (const el of fields) {
+    const key = el.dataset.key;
+    if (el.type === "checkbox") out[key] = el.checked ? "on" : "off";
+    else if (el.type !== "number" || el.value.trim() !== "") out[key] = el.value.trim();
+  }
+  return out;
+}
+
+function edits() {
+  return Object.fromEntries(Object.entries(form()).filter(([key, value]) => key in filled && value !== filled[key]));
+}
+
+function markActive() {
+  const now = {...defaults, ...form()};
+  for (const kind of [...KINDS, "setup"]) {
+    for (const button of $("#" + kind + "s").children) {
+      const wanted = tables[kind][button.dataset.name].values;
+      button.setAttribute("aria-pressed", String(Object.entries(wanted).every(([k, v]) => (now[k] ?? "") === v)));
+    }
+  }
+  crewView(now);
+}
+
+function crewView(now) {
+  const picked = Object.keys(tables.strength).find((name) => Object.entries(tables.strength[name].values).every(([k, v]) => (now[k] ?? "") === v));
+  const size = Math.max(1, Number(now.DEEPCREW_MAX_ACTIVE) || 1), sandbox = ["on", "1", "true", "yes"].includes(String(now.DEEPCREW_SANDBOX || "").toLowerCase());
+  const network = String(now.DEEPCREW_SANDBOX_DOMAINS || "").toLowerCase() !== "none", model = String(now.DEEPCREW_MODEL || "").replace(/\[.*\]$/, "");
+  PixelCrew.picture($("#crew-view"), {size, suit: picked || "fast", sandbox, network});
+  setText($("#crew-cap"), "Up to " + size + (size === 1 ? " member" : " members") + " at once" + (model ? " on " + model : "") + (now.DEEPCREW_EFFORT ? ", effort " + now.DEEPCREW_EFFORT : "")
+    + ". " + (sandbox ? (network ? "Sandbox on, with network to the allowed sites." : "Sandbox on, no network.") : "No sandbox."));
+}
+
+function presetButtons(kind, table) {
+  tables[kind] = table;
+  const box = $("#" + kind + "s"), names = Object.keys(table);
+  if (box.children.length !== names.length || names.some((name, i) => box.children[i].dataset.name !== name)) {
+    box.replaceChildren(...names.map((name) => h("button", {type: "button", class: "preset", "data-name": name, onclick: () => applyPreset(kind, name)}, h("b"), h("small"))));
+  }
+  names.forEach((name, i) => {
+    const preset = table[name], v = preset.values, button = box.children[i], [label, summary] = button.children;
+    label.textContent = preset.label;
+    summary.textContent = kind === "setup" ? preset.presets.join(", ")
+      : kind === "strength" ? (v.DEEPCREW_MODEL || "").replace(/\[.*\]$/, "") + ", " + v.DEEPCREW_EFFORT
+      : kind === "size" ? "×" + v.DEEPCREW_MAX_ACTIVE : (v.DEEPCREW_ALLOW || "").split(",").filter(Boolean).length + " commands";
+    button.title = preset.summary;
+  });
+}
+
+async function applyPreset(kind, name) {
+  try {
+    const reply = await api("/api/preset", kind === "setup" ? {setup: name} : {names: [name]});
+    fill(tables[kind][name].values, true);
+    refusal("");
+    markActive();
+    say("m-" + kind, "Saved ✓" + teamLine(reply));
+    changed();
+  } catch (e) {
+    say("m-" + kind, refusal(e.message), true);
+  }
+}
+
+function showKey(key, provider) {
+  const source = key.source || "";
+  const where = source.startsWith("keychain:") ? "the system keychain"
+    : source.startsWith("env:") ? "the environment variable " + source.slice(4)
+    : source.startsWith("dotenv:") ? "the .env file" : source;
+  const tag = $("#keystatus");
+  tag.textContent = key.found ? "key ✓" : "no key";
+  tag.className = "tag " + (key.found ? "ok" : "bad");
+  tag.title = key.found ? provider + ": found in " + where : provider + ": a saved key goes to " + (keychain ? "the system keychain" : "the .env file") + " and is never shown here";
+  const to = key.endpoint || "the provider", place = key.where || where;
+  $("#key-local").textContent = key.found
+    ? "Stored in " + place + (place.includes("this computer") ? "" : " on this computer") + ". Sent only to " + to + "; the leader and members never see it."
+    : "Saved keys stay on this computer, in " + (keychain ? "the system keychain" : envFile + " with mode 0600") + ", and go only to " + to + ".";
+}
+
+function render(s) {
+  keychain = s.keychain;
+  envFile = s.env_file;
+  team = s.team || null;
+  $("#envpath").textContent = s.env_file;
+  $("#attached").hidden = !team;
+  $("#attached").textContent = team ? "What you save here also changes team " + team + "." : "";
+  $("#team-skeleton").hidden = !team || teamSeen;
+  if (!$("#team-skeleton").hidden) sizeSkeleton();
+  $("#doneHint").textContent = team ? "Done tells the leader you are finished." : "Applies to teams created from now on.";
+  defaults = s.defaults || {};
+  options($("#provider"), s.providers, s.provider);
+  options($("#model"), s.models, s.values.DEEPCREW_MODEL);
+  options($("#effort"), s.efforts, s.values.DEEPCREW_EFFORT || "default");
+  for (const kind of [...KINDS, "setup"]) presetButtons(kind, s[kind + "s"]);
+  fill(s.values, false);
+  showKey(s.key, s.provider);
+  markActive();
+  followTheme(s.theme);
+  loaded = Date.now();
+  if (team && !polling) { polling = true; pollRequests(); }
+  changed();
+}
+
+async function refresh() {
+  if (Object.keys(edits()).length || Date.now() - loaded < 1000) return;
+  try { render(await api("/api/state")); } catch (_) { }
+}
+
+async function save() {
+  const values = edits();
+  try {
+    const reply = await api("/api/save", {values});
+    Object.assign(filled, values);
+    refusal("");
+    say("m-save", "Saved ✓" + teamLine(reply));
+    changed();
+    return true;
+  } catch (e) {
+    say("m-save", refusal(e.message), true);
+    return false;
+  }
+}
+
+$("#keyform").onsubmit = async (event) => {
+  event.preventDefault();
+  const input = $("#key");
+  if (!input.value.trim()) return say("m-key", "Paste a key", true);
+  try {
+    const s = await api("/api/key", {key: input.value.trim(), provider: $("#provider").value});
+    keychain = s.keychain;
+    showKey(s.key, s.provider);
+    say("m-key", "Saved ✓");
+    loadTeam();
+  } catch (e) {
+    say("m-key", e.message, true);
+  } finally {
+    input.value = "";
+  }
+};
+
+$("#check").onclick = async () => {
+  say("m-key", "Checking…", false, true);
+  try {
+    const d = await api("/api/check", {provider: $("#provider").value});
+    if (d.checked === false) return say("m-key", "Not checked: " + d.detail + ".", false, true);
+    const balance = Object.entries(d.balances || {}).map(([currency, amount]) => amount + " " + currency).join(", ");
+    say("m-key", [d.ok ? "Key works." : "Check failed.", balance && "Balance: " + balance + ".", d.detail].filter(Boolean).join(" "), !d.ok);
+  } catch (e) {
+    say("m-key", e.message, true);
+  }
+};
+
+$("#provider").onchange = async () => {
+  try {
+    const s = await api("/api/state?provider=" + encodeURIComponent($("#provider").value));
+    options($("#model"), s.models);
+    options($("#effort"), s.efforts, "default");
+    keychain = s.keychain;
+    showKey(s.key, s.provider);
+  } catch (e) {
+    say("m-save", e.message, true);
+  }
+};
+
+document.addEventListener("input", (event) => {
+  if (event.target.dataset && event.target.dataset.key) markActive();
+});
+
+$("#save").onclick = save;
+
+$("#done").onclick = async () => {
+  if (Object.keys(edits()).length && !(await save())) return;
+  try {
+    const reply = await api("/api/done", {});
+    if (team) {
+      say("m-save", "Confirmed ✓" + teamLine(reply));
+      loadTeam();
+      return;
+    }
+    const note = document.createElement("p");
+    note.textContent = "Saved ✓";
+    document.body.replaceChildren(note);
+    note.style.cssText = "max-width:720px;margin:0 auto;padding:24px 16px";
+  } catch (e) {
+    say("m-save", e.message, true);
+  }
+};
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [name, value] of Object.entries(attrs || {})) {
+    if (name === "class") { if (value) el.className = value; }
+    else if (name.startsWith("on")) el[name] = value;
+    else if (value === true) el.setAttribute(name, "");
+    else if (value !== false && value != null) el.setAttribute(name, value);
+  }
+  el.append(...kids);
+  return el;
+}
+
+const POLL_MS = 2000, HIDDEN_POLL_MS = 10000;
+const rows = new Map();
+let shown = "";
+let pollTimer = 0;
+let pollSeq = 0;
+let polling = false;
+
+function oneLine(text, max) {
+  const line = String(text).replace(/\s+/g, " ").trim();
+  return line.length > max ? line.slice(0, max - 1) + "…" : line;
+}
+
+function wants(tool, input) {
+  input = input && typeof input === "object" ? input : {};
+  if (tool === "Bash" && typeof input.command === "string") return input.command;
+  if (tool === "SandboxNetworkAccess" && typeof input.host === "string") return "connect to " + input.host;
+  const path = input.file_path || input.notebook_path;
+  return typeof path === "string" ? path : JSON.stringify(input);
+}
+
+async function answerRequest(row, body) {
+  const controls = [...row.querySelectorAll("button, input")];
+  const line = row.querySelector(".msg");
+  const focused = row.contains(document.activeElement), order = [...$("#waiting-list").children];
+  line.textContent = "";
+  for (const control of controls) control.disabled = true;
+  try {
+    const reply = await api("/api/answer", body);
+    showRequests(reply.requests);
+    if (focused) focusAfter(row, order);
+    clearTimeout(pollTimer);
+    pollSeq += 1;
+    pollTimer = setTimeout(pollRequests, POLL_MS);
+    changed();
+  } catch (e) {
+    for (const control of controls) control.disabled = false;
+    line.textContent = oneLine(e.message, 120);
+    fade(line);
+  }
+}
+
+function focusAfter(row, order) {
+  if ([...rows.values()].includes(row)) return;
+  const at = order.indexOf(row), staying = (el) => el.isConnected && !el.classList.contains("leaving");
+  const next = order.slice(at + 1).find(staying) || order.slice(0, Math.max(at, 0)).reverse().find(staying);
+  const control = next && next.querySelector("button:not(:disabled), input:not(:disabled)");
+  (control || $("#waiting-list")).focus();
+}
+
+function showAlso(row, widening) {
+  const note = row.querySelector(".rq-also"), text = widening && typeof widening.text === "string" ? widening.text.trim().replace(/\.$/, "") : "";
+  note.hidden = !text;
+  setText(note, text ? "Allow also: " + text + "." : "");
+}
+
+function permRow(r) {
+  const row = h("div", {class: "rq"});
+  const text = wants(r.tool, r.input);
+  const folder = typeof r.folder === "string" ? r.folder : "";
+  const also = "also-" + r.id;
+  const button = (label, body, cls, tip) => h("button", {type: "button", class: cls, title: tip, "aria-describedby": body.allow ? also : null,
+    onclick: () => answerRequest(row, {id: r.id, ...body})}, label);
+  row.append(
+    h("span", {class: "rq-who"}, h("b", {}, r.member), " ", h("span", {class: "muted"}, r.tool)),
+    h("code", {class: "rq-what", title: text}, oneLine(text, 400)),
+    h("div", {class: "rq-act"},
+      button("Allow", {allow: true}, "primary"),
+      button("Deny", {allow: false}),
+      folder ? button("Link folder", {allow: true, link: true}, "", "Allow, and let every member reach " + folder + (r.write ? " (read and write)" : " (read)")) : ""),
+    h("p", {class: "rq-also", id: also}),
+    r.review ? h("p", {class: "rq-review"}, "Reviewer: " + r.review) : "",
+    folder ? h("p", {class: "rq-folder"}, "Folder ", h("code", {}, folder), " ", h("span", {class: "tag"}, r.write ? "read/write" : "read")) : "",
+    h("span", {class: "msg bad", role: "alert"}));
+  return row;
+}
+
+function questionRow(r) {
+  const row = h("div", {class: "rq"});
+  row.append(h("span", {class: "rq-who"}, h("b", {}, r.member), r.task ? h("span", {class: "muted"}, " task #" + r.task) : ""),
+    h("p", {class: "rq-text"}, r.question));
+  if ((r.options || []).length) {
+    row.append(h("div", {class: "rq-act"}, ...r.options.map((o, i) => h("button", {type: "button", onclick: () => answerRequest(row, {id: r.id, option: i})}, String(o)))));
+  } else {
+    const input = h("input", {type: "text", required: true, autocomplete: "off", "aria-label": "Answer to " + r.member});
+    row.append(h("form", {onsubmit: (event) => {
+      event.preventDefault();
+      if (input.value.trim()) answerRequest(row, {id: r.id, text: input.value.trim()});
+    }}, input, h("button", {type: "submit"}, "Send")));
+  }
+  row.append(h("span", {class: "msg bad", role: "alert"}));
+  return row;
+}
+
+const HHMM = new Intl.DateTimeFormat([], {hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
+const DAY = new Intl.DateTimeFormat([], {weekday: "short", month: "short", day: "numeric"});
+const clock = (ts) => {
+  const at = new Date(ts * 1000);
+  return (at.toDateString() === new Date().toDateString() ? "" : DAY.format(at) + " ") + HHMM.format(at);
+};
+
+function showRequests(reqs) {
+  const items = [...reqs.perms.map((r) => ({...r, kind: "perm"})), ...reqs.questions.map((r) => ({...r, kind: "question"}))]
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  const ids = new Set(items.map((r) => r.id));
+  const asksOpen = !$("#waiting").hidden && !$("#waiting-asks").hidden;
+  for (const [id, row] of rows) if (!ids.has(id)) { fold(row); rows.delete(id); }
+  const list = $("#waiting-list"), fresh = [];
+  let next = list.firstElementChild;
+  for (const r of items) {
+    let row = rows.get(r.id);
+    if (!row) { row = r.kind === "perm" ? permRow(r) : questionRow(r); rows.set(r.id, row); fresh.push(row); }
+    if (r.kind === "perm") showAlso(row, r.widening);
+    while (next && next.classList.contains("leaving")) next = next.nextElementSibling;
+    if (row === next) next = next.nextElementSibling;
+    else list.insertBefore(row, next);
+  }
+  setText($("#waiting-n"), String(items.length));
+  $("#waiting-asks").hidden = items.length === 0;
+  $("#waiting").hidden = !team || items.length === 0;
+  if (asksOpen) for (const row of fresh) grow(row);
+  const now = items.map((r) => r.id).join();
+  if (now !== shown) { shown = now; changed(); }
+}
+
+async function pollRequests() {
+  clearTimeout(pollTimer);
+  if (!team) return;
+  const mine = ++pollSeq;
+  try {
+    const reqs = await api("/api/requests");
+    if (mine === pollSeq) showRequests(reqs);
+  } catch (_) { }
+  if (mine === pollSeq) pollTimer = setTimeout(pollRequests, document.hidden ? HIDDEN_POLL_MS : POLL_MS);
+}
+
+document.addEventListener("visibilitychange", () => { if (!document.hidden && polling) pollRequests(); });
+
+const TEAM_POLL_MS = 5000;
+const STATE_WORD = {active: "working"};
+const SETUP = {key: ["save the API key", "#key"], confirm: ["check the settings and press Done", "#done"]};
+const teamParts = new Map();
+const memberRows = new Map();
+let teamTimer = 0;
+let teamSeq = 0;
+let teamView = null;
+let teamSeen = false;
+let teamCompare = "";
+let resting = false;
+let crewBusy = false;
+let budgetBusy = false;
+let budgetTyped = false;
+try { teamCompare = localStorage.getItem("deepcrew-compare") || ""; } catch (_) { }
+
+const dollars = (usd) => "$" + usd.toLocaleString("en-US", {minimumFractionDigits: 4, maximumFractionDigits: 4});
+const money = (usd) => "$" + usd.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
+const goTo = (selector) => (event) => { event.preventDefault(); $(selector).focus(); };
+const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+
+function compact(n) {
+  let x = Math.round(n), i = 0;
+  while (x >= 999.5 && i < 4) { x /= 1000; i += 1; }
+  return (x < 9.95 ? +x.toFixed(1) : Math.round(x)) + ["", "k", "M", "G", "T"][i];
+}
+
+function tokenText(u) {
+  return [[u.input_tokens, "in"], [u.output_tokens, "out"], [u.cache_read_input_tokens, "cache read"], [u.cache_creation_input_tokens, "cache write"]]
+    .map(([n, word]) => (n || 0).toLocaleString() + " " + word).join(", ");
+}
+
+function rebuild(el, key, build) {
+  if (teamParts.get(el.id) === key) return;
+  teamParts.set(el.id, key);
+  el.replaceChildren(...build());
+}
+
+function newMemberRow() {
+  const cell = (cls, label) => h("td", {class: cls, "data-l": label});
+  const dot = h("span", {class: "dot av", "aria-hidden": "true"}), name = document.createTextNode(""), av = new PixelCrew.Diver({size: 1.25, state: "idle"});
+  const who = cell("who"), state = h("span", {class: "tag"}), tin = h("span"), tout = h("span");
+  const [model, task, requests, tokens, costCell] = [cell(), cell("", "task"), cell("n", "requests"), cell("n", "tokens in/out"), cell("n", "cost")];
+  const cost = h("span"), share = h("i", {class: "share"});
+  dot.append(av.el);
+  who.append(dot, name);
+  tokens.append(tin, " / ", tout);
+  costCell.append(cost, share);
+  const tr = h("tr", {}, who, h("td", {}, state), model, task, requests, tokens, costCell);
+  return {tr, who, dot, av, name, state, model, task, requests, tokens, tin, tout, cost, share};
+}
+
+function fillMember(r, m, fallback) {
+  r.dot.className = "dot av s-" + m.state;
+  if (r.name.nodeValue !== m.name) r.name.nodeValue = m.name;
+  r.who.title = (m.region || []).join(", ");
+  const turn = m.turn && m.turn.since ? Math.floor((Date.now() / 1000 - m.turn.since) / 60) : null;
+  setText(r.state, (STATE_WORD[m.state] || m.state) + (turn != null && m.turn.doing ? ", " + m.turn.doing + " " + turn + "m" : ""));
+  r.state.className = "tag" + (m.state === "active" ? " ok" : m.state === "failed" ? " bad" : "");
+  setText(r.model, String(m.model || fallback || "").replace(/\[.*\]$/, "") + (m.effort ? ", " + m.effort : "") + (m.thinking === false ? ", no thinking" : ""));
+  setText(r.task, m.task ? "#" + m.task : "-");
+  count(r.requests, m.requests || 0, (n) => String(Math.round(n)));
+  count(r.tin, m.input_tokens || 0, compact);
+  count(r.tout, m.output_tokens || 0, compact);
+  r.tokens.title = tokenText(m);
+  if (m.cost_usd == null) { uncount(r.cost); setText(r.cost, "-"); } else count(r.cost, m.cost_usd, dollars);
+}
+
+const AVATAR = {active: "active", starting: "starting", idle: "idle", failed: "failed"};
+function strengthOf(m, fallback) {
+  const model = m.model || fallback, rows = Object.entries(tables.strength).filter(([, s]) => s.values.DEEPCREW_MODEL === model);
+  const row = rows.find(([, s]) => !m.effort || s.values.DEEPCREW_EFFORT === m.effort) || rows[0];
+  return row ? row[0] : "fast";
+}
+
+function showMix(total) {
+  const read = total.cache_read_input_tokens || 0, fresh = (total.input_tokens || 0) + (total.cache_creation_input_tokens || 0), out = total.output_tokens || 0;
+  const all = read + fresh + out, host = $("#team-mix");
+  host.hidden = !all;
+  if (!all) return;
+  const cells = 40, a = Math.round((read / all) * cells), b = Math.min(cells - a, Math.round((fresh / all) * cells));
+  rebuild(host, [a, b].join(), () => {
+    const bar = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    bar.setAttribute("viewBox", "0 0 " + (cells * 3 - 1) + " 2");
+    bar.setAttribute("shape-rendering", "crispEdges");
+    bar.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < cells; i++) {
+      const cell = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      for (const [k, v] of Object.entries({x: i * 3, y: 0, width: 2, height: 2, style: "fill:" + (i < a ? "#9FD3E6" : i < a + b ? "#E07A52" : "#A9512F")})) cell.setAttribute(k, v);
+      bar.append(cell);
+    }
+    return [bar, h("span", {class: "mix-n"})];
+  });
+  setText(host.querySelector(".mix-n"), Math.round((read / Math.max(1, read + fresh)) * 100) + "% of input from cache");
+  host.title = "Each cell is one fortieth of the tokens: blue read from the provider's cache, orange sent fresh, dark written by the model.";
+}
+
+function memberTable() {
+  const head = (label, cls) => h("th", {class: cls || ""}, label);
+  return h("table", {class: "tm-table"},
+    h("thead", {}, h("tr", {}, head("Member"), head("State"), head("Model"), head("Task"), head("Requests", "n"), head("Tokens in/out", "n"), head("Cost", "n"))),
+    h("tbody"));
+}
+
+function showMembers(members, fallback, resting) {
+  const host = $("#team-members");
+  host.classList.toggle("resting", resting);
+  if (!members.length) {
+    if (host.firstChild) host.replaceChildren();
+    memberRows.clear();
+    return;
+  }
+  let body = host.querySelector("tbody");
+  if (!body) { host.replaceChildren(memberTable()); body = host.querySelector("tbody"); if (teamSeen) fade(host); }
+  const seen = new Set(), top = Math.max(0, ...members.map((m) => m.cost_usd || 0)), all = members.reduce((s, m) => s + (m.cost_usd || 0), 0);
+  members.forEach((m, i) => {
+    let r = memberRows.get(m.name);
+    if (!r) { r = newMemberRow(); memberRows.set(m.name, r); if (teamSeen) fade(r.tr); }
+    seen.add(m.name);
+    fillMember(r, m, fallback);
+    r.av.suit(strengthOf(m, fallback)).set(resting ? "idle" : AVATAR[m.state] || "ready");
+    r.share.style.width = top > 0 ? ((m.cost_usd || 0) / top) * 100 + "%" : "0";
+    r.share.title = all > 0 ? Math.round(((m.cost_usd || 0) / all) * 100) + "% of the team's cost" : "";
+    if (body.children[i] !== r.tr) body.insertBefore(r.tr, body.children[i] || null);
+  });
+  for (const [name, r] of memberRows) if (!seen.has(name)) { r.tr.remove(); memberRows.delete(name); }
+}
+
+function reachLines(view) {
+  const line = (label, ...kids) => h("p", {class: "tm-reach"}, label + ": ", ...kids);
+  const sites = view.sites || [];
+  return [
+    ...(view.folders || []).map((f) => line("Linked folder", h("code", {}, f.path), " (" + (f.write ? "read/write" : "read") + ")")),
+    ...(view.tools ? [line("Tools folder", h("code", {}, view.tools))] : []),
+    ...(sites.length ? [line("Sites", sites.join(", "))] : []),
+  ];
+}
+
+function showSaved(saving, paid, members) {
+  const names = Object.keys((saving && saving.claude) || {}), sel = $("#team-cmp");
+  $("#team-saved").hidden = !names.length || paid == null || !members;
+  if ($("#team-saved").hidden) return;
+  if (sel.options.length !== names.length) sel.replaceChildren(...names.map((n) => h("option", {value: n}, n)));
+  if (!names.includes(teamCompare)) teamCompare = names.includes(saving.compare) ? saving.compare : names[0];
+  sel.value = teamCompare;
+  const same = saving.claude[teamCompare], saved = same - paid, ratio = paid > 0 ? same / paid : null;
+  setText($("#team-saved-l"), saved >= 0 ? "saved" : "costs more by");
+  count($("#team-saved-n"), Math.abs(saved), dollars);
+  $("#team-saved-n").classList.toggle("neg", saved < 0);
+  $("#team-saved").title = "What the same tokens would cost at Claude " + teamCompare + "'s list prices: at least " + dollars(same)
+    + (ratio ? " (" + (ratio >= 1 ? ratio.toFixed(1) + "x cheaper here" : (1 / ratio).toFixed(1) + "x pricier here") + ")" : "") + ".";
+}
+
+$("#team-cmp").onchange = () => {
+  teamCompare = $("#team-cmp").value;
+  try { localStorage.setItem("deepcrew-compare", teamCompare); } catch (_) { }
+  if (teamView) showTeam(teamView);
+};
+
+function showBudget(view) {
+  const b = view.budget || null, box = $("#team-budget");
+  box.hidden = !b;
+  if (!b) return;
+  const priced = b.spent != null, capped = b.usd != null, input = $("#budget-usd");
+  const ratio = capped && priced && b.usd > 0 ? b.spent / b.usd : 0, over = capped && priced && (b.reached || ratio >= 1);
+  const wrap = $("#budget-ring-wrap"), arc = $("#budget-arc"), ring = $("#budget-ring");
+  const fresh = wrap.hidden && capped && priced;
+  box.classList.toggle("capped", capped && priced);
+  wrap.hidden = !(capped && priced);
+  $("#budget-now").hidden = priced && !capped;
+  $("#budget-text").hidden = !(capped && priced);
+  $("#budget-none").hidden = priced;
+  const provider = view.provider || null;
+  setText($("#budget-none"), priced ? "" : provider && !provider.priced
+    ? "Costs are not tracked for " + provider.name + ": its entry has no prices in USD, so a budget cannot be counted."
+    : "This model has no prices, so a budget cannot be counted.");
+  if (capped && priced) {
+    if (fresh) { arc.style.strokeDasharray = "0 100"; void arc.getBoundingClientRect(); }
+    arc.style.strokeDasharray = Math.min(100, ratio * 100) + " 100";
+    ring.classList.toggle("near", !over && ratio >= 0.8);
+    ring.classList.toggle("over", over);
+    const pct = Math.round(ratio * 100);
+    count($("#budget-pct"), Math.min(100, pct), (n) => Math.round(n) + "%");
+    count($("#budget-spent"), b.spent, money);
+    setText($("#budget-cap"), money(b.usd));
+    $("#budget-text").classList.toggle("over", over);
+    ring.setAttribute("aria-label", "Budget spent: " + pct + "%");
+    wrap.title = money(b.spent) + " of " + money(b.usd);
+  } else {
+    uncount($("#budget-spent"));
+    uncount($("#budget-pct"));
+  }
+  input.disabled = !priced || budgetBusy;
+  $("#budget-set").disabled = !priced || budgetBusy;
+  $("#budget-clear").hidden = !capped;
+  $("#budget-clear").disabled = budgetBusy;
+  if (!budgetTyped && document.activeElement !== input) input.value = capped ? b.usd.toFixed(2) : "";
+}
+
+$("#budget-usd").addEventListener("input", () => { budgetTyped = true; });
+
+async function budgetAction(usd) {
+  const was = teamView && teamView.paused && teamView.paused.by === "budget";
+  const at = $("#budget-form").contains(document.activeElement) ? document.activeElement : null;
+  let view = null;
+  say("m-team", "");
+  budgetBusy = true;
+  showBudget(teamView || {});
+  try { view = await api("/api/budget", {usd}); } catch (e) { say("m-team", oneLine(e.message, 120), true); }
+  budgetBusy = false;
+  if (view) {
+    budgetTyped = false;
+    teamSeq += 1;
+    pollTeamLater();
+    showTeam(view);
+    const b = view.budget || {};
+    say("m-team", (b.usd == null ? "Budget cleared." : "Budget " + money(b.usd) + ".") + (was && !view.paused ? " The crew works again." : ""));
+  } else if (teamView) showBudget(teamView);
+  if (at) (at.disabled || at.hidden ? $("#budget-usd") : at).focus();
+}
+
+$("#budget-form").onsubmit = (event) => {
+  event.preventDefault();
+  const raw = $("#budget-usd").value.trim(), usd = Number(raw);
+  if (!raw || !Number.isFinite(usd) || usd <= 0) return say("m-team", "Enter an amount above 0", true);
+  budgetAction(usd);
+};
+
+$("#budget-clear").onclick = () => { $("#budget-usd").value = ""; budgetAction(null); };
+
+function crewButtons(view) {
+  const members = view.members || [], paused = view.paused || null, spent = !!(view.budget && view.budget.reached);
+  const stop = $("#crew-stop"), resume = $("#crew-resume");
+  stop.classList.toggle("off", !!paused || members.length === 0);
+  resume.classList.toggle("off", !paused);
+  stop.disabled = crewBusy;
+  resume.disabled = crewBusy || spent;
+  if (spent) resume.title = "Raise the budget to resume the crew";
+  else resume.removeAttribute("title");
+  $("#team-rest").classList.toggle("on", !!paused);
+}
+
+const narrow = () => innerWidth <= 600;
+function sizeSkeleton() {
+  let kept = null;
+  try { kept = JSON.parse(localStorage.getItem("deepcrew-team-height")); } catch (_) { }
+  if (kept && kept.narrow === narrow() && kept.px > 0) $("#team-skeleton").style.minHeight = kept.px + "px";
+}
+
+function keepHeight() {
+  try { localStorage.setItem("deepcrew-team-height", JSON.stringify({narrow: narrow(), px: Math.round($("#team-panel").offsetHeight)})); } catch (_) { }
+}
+
+function showTeam(view) {
+  teamView = view;
+  $("#team-skeleton").hidden = true;
+  $("#team-panel").hidden = !view.exists;
+  if (!view.exists) { teamSeen = true; return; }
+  const members = view.members || [], paused = view.paused || null, total = view.total || {}, tasks = view.tasks || {}, budget = view.budget || null;
+  const inState = (state) => members.filter((m) => m.state === state).length;
+  const states = ["active", "starting", "idle", "failed"].filter((s) => inState(s)).map((s) => inState(s) + " " + (STATE_WORD[s] || s));
+  setText($("#team-status"), paused ? "Crew resting" + (paused.ts ? " since " + clock(paused.ts) : "") + (paused.by ? ", by the " + paused.by : "")
+    : members.length ? [plural(members.length, "member"), ...states].join(", ") : "No members yet");
+  if (teamSeen && !!paused !== resting) fade($("#team-status"));
+  const counts = [[tasks.open, "open"], [tasks.claimed, "running"], [tasks.done, "done"], [tasks.cancelled, "cancelled"]].filter(([n]) => n).map(([n, word]) => n + " " + word);
+  setText($("#team-tasks"), "tasks: " + (counts.join(", ") || "none"));
+  showProvider(view.provider || null);
+  const price = view.prices || null;
+  $("#team-price").hidden = !price;
+  if (price) {
+    setText($("#team-price"), (price.peak ? "Peak" : "Off-peak") + ", " + price.text);
+    $("#team-price").classList.toggle("off", !price.peak);
+    $("#team-price").title = "List prices are the peak prices. Each turn is priced at the rate of the hour it ends in.";
+  }
+  const usd = total.cost_usd;
+  $("#team-money").hidden = !members.length;
+  const untracked = !!(view.provider && !view.provider.priced);
+  if (usd == null) { uncount($("#team-cost")); setText($("#team-cost"), untracked ? "costs not tracked" : "no prices"); } else count($("#team-cost"), usd, dollars);
+  $("#team-cost").title = untracked ? "Costs are not tracked for " + view.provider.name + ": its entry has no prices in USD." : "";
+  $("#team-cost").classList.toggle("none", usd == null);
+  count($("#tk-in"), total.input_tokens || 0, compact);
+  count($("#tk-out"), total.output_tokens || 0, compact);
+  count($("#tk-cache"), total.cache_read_input_tokens || 0, compact);
+  $("#team-tokens").title = tokenText(total);
+  showMix(total);
+  showSaved(view.saving, usd, members.length);
+  const missing = ((view.setup && view.setup.missing) || []).filter((k) => SETUP[k]);
+  $("#team-wait").hidden = missing.length === 0;
+  rebuild($("#team-wait"), missing.join(), () => missing.length ? [h("b", {}, "Waiting for you:"), " ",
+    ...missing.flatMap((k, i) => [i ? "; " : "", h("a", {href: SETUP[k][1], onclick: goTo(SETUP[k][1])}, SETUP[k][0])])] : []);
+  const limit = !!(paused && (paused.by === "budget" || (budget && budget.reached)));
+  $("#budget-wait").hidden = !limit;
+  if (limit) {
+    const spent = budget && budget.spent != null ? budget.spent : paused.spent, cap = budget && budget.usd != null ? budget.usd : paused.usd;
+    setText($("#budget-wait"), "Budget reached: " + money(spent || 0) + " of " + money(cap || 0) + ". The crew rests until the budget is raised.");
+  }
+  showBudget(view);
+  showMembers(members, view.model, !!paused);
+  rebuild($("#team-reach"), JSON.stringify([view.folders, view.tools, view.sites]), () => reachLines(view));
+  crewButtons(view);
+  if (!teamSeen) keepHeight();
+  teamSeen = true;
+  resting = !!paused;
+}
+
+const FAILED = {balance: "had no balance", rate_limit: "kept hitting its rate limit", overload: "stayed overloaded"};
+function showProvider(p) {
+  const el = $("#team-provider");
+  el.hidden = !p;
+  if (!p) return;
+  const moved = p.fallback || null, backups = (p.backups || []).join(", ");
+  setText(el, "provider " + p.name + (moved ? ", since " + clock(moved.ts) + ": " + moved.from + " " + (FAILED[moved.kind] || "failed") : ""));
+  el.classList.toggle("moved", !!moved);
+  el.title = [moved ? "The team switched to " + p.name + " because " + moved.from + " " + (FAILED[moved.kind] || "failed") + " (" + oneLine(moved.said || "", 160)
+    + "). To go back once it works again, choose " + moved.from + " under Model, Custom, and save." : "",
+    backups ? "Backups: " + backups + "." : "", p.priced ? "" : "Costs are not tracked for " + p.name + "."].filter(Boolean).join(" ");
+}
+
+function pollTeamLater() {
+  clearTimeout(teamTimer);
+  if (!document.hidden) teamTimer = setTimeout(loadTeam, TEAM_POLL_MS);
+}
+
+async function loadTeam() {
+  clearTimeout(teamTimer);
+  if (!team) return;
+  const mine = ++teamSeq;
+  let view = null;
+  try { view = await api("/api/team"); } catch (_) { }
+  if (mine !== teamSeq) return;
+  pollTeamLater();
+  if (view) showTeam(view);
+  else $("#team-skeleton").hidden = true;
+}
+
+async function crewAction(action, button) {
+  const label = button.textContent, focused = document.activeElement === button;
+  let view = null;
+  say("m-team", "");
+  crewBusy = true;
+  button.disabled = true;
+  button.textContent = action === "rest" ? "Resting…" : "Resuming…";
+  try { view = await api("/api/crew", {action}); } catch (e) { say("m-team", oneLine(e.message, 120), true); }
+  crewBusy = false;
+  button.textContent = label;
+  if (!view) {
+    if (teamView) crewButtons(teamView);
+    if (focused) button.focus();
+    return;
+  }
+  teamSeq += 1;
+  pollTeamLater();
+  showTeam(view);
+  if (focused && button.classList.contains("off")) $(action === "rest" ? "#crew-resume" : "#crew-stop").focus();
+}
+
+$("#crew-stop").onclick = (event) => crewAction("rest", event.currentTarget);
+$("#crew-resume").onclick = (event) => crewAction("resume", event.currentTarget);
+document.addEventListener("deepcrew:changed", loadTeam);
+document.addEventListener("visibilitychange", () => { if (document.hidden) clearTimeout(teamTimer); else loadTeam(); });
+
+addEventListener("focus", refresh);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+setTimeout(reveal, 900);
+api("/api/state").then(render, (e) => say("m-save", e.message, true)).finally(reveal);
+</script>
+</body>
+</html>

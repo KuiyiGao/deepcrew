@@ -1,0 +1,11 @@
+name: Idea
+description: A feature, or a kind of job you want the crew to handle better
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you want deepcrew to do, and why.
+    validations:
+      required: true

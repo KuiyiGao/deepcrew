@@ -1,0 +1,30 @@
+name: Share a run
+description: How a crew did on a real job
+labels: [run]
+body:
+  - type: textarea
+    id: job
+    attributes:
+      label: The job
+      description: What you asked the leader to do, in a sentence or two.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      description: The preset (or the model, team size and permissions), the leader, and how much memory the computer has.
+    validations:
+      required: true
+  - type: input
+    id: tokens
+    attributes:
+      label: Tokens
+      description: What the team page counted, in, out and cache read.
+  - type: textarea
+    id: how
+    attributes:
+      label: How it went
+      description: What worked, what got stuck, and what you had to do by hand. A prompt that would have helped is welcome here too.
+    validations:
+      required: true

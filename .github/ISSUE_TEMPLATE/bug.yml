@@ -1,0 +1,42 @@
+name: Bug report
+description: Something broke, or deepcrew did not install
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of deepcrew check
+      description: Run `deepcrew check` in your project and paste the output. Cover API keys and private paths first.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: leader
+    attributes:
+      label: Leader
+      options:
+        - Claude desktop app
+        - Claude Code in a terminal
+        - Codex
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Operating system, `claude --version`, and the deepcrew version (`pip show deepcrew` or the commit).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest way to see it again, if you have one.

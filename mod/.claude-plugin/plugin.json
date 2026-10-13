@@ -1,0 +1,20 @@
+{
+  "name": "deepcrew",
+  "version": "0.1.0",
+  "description": "The /deepcrew skill to lead a crew, the crew's requests answered above your prompt, and /crew to see the whole crew",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "command": {
+      "type": "string",
+      "title": "deepcrew command",
+      "description": "The deepcrew command, or its full path when Claude Code cannot find it on PATH",
+      "default": "deepcrew"
+    },
+    "team": {
+      "type": "string",
+      "title": "Team",
+      "description": "The team this session leads",
+      "default": "main"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "deepcrew",
+  "owner": {
+    "name": "KuiyiGao"
+  },
+  "plugins": [
+    {
+      "name": "deepcrew",
+      "source": "./mod",
+      "description": "The /deepcrew skill to lead a crew, the crew's requests answered above your prompt, and /crew to see the whole crew"
+    }
+  ]
+}

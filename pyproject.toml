@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepcrew"
+version = "0.1.0"
+authors = [{ name = "KuiyiGao" }]
+description = "The cheapest ultracode for Claude Code: a multi-agent swarm of stock Claude Code agents on DeepSeek, led by your own Claude Code or Codex."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["claude-code", "ultracode", "deepseek", "deepseek-api", "codex", "multi-agent", "swarm", "agent-swarm", "agent-teams",
+            "parallel-agents", "subagents", "coding-agents", "token-saver", "usage-limits", "ai-agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+]
+
+[project.urls]
+Homepage = "https://github.com/KuiyiGao/deepcrew"
+Repository = "https://github.com/KuiyiGao/deepcrew"
+Issues = "https://github.com/KuiyiGao/deepcrew/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.12,<0.17"]
+
+[project.scripts]
+deepcrew = "deepcrew.cli:main"
+
+[tool.setuptools]
+packages = ["deepcrew"]
+
+[tool.setuptools.package-data]
+deepcrew = ["prompts/basic/*.md", "ui.html"]
+
+[tool.ruff]
+line-length = 160
+extend-exclude = ["build"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "S", "SIM"]
+ignore = ["S101", "S603", "S607", "SIM105"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "E501", "F401", "F811", "E731"]
+"tests/conftest.py" = ["E402"]
+"deepcrew/_run.py" = ["E402"]
+"deepcrew/__main__.py" = ["E402", "UP036"]
+"deepcrew/cli.py" = ["F401"]
+"deepcrew/extensions.py" = ["S102"]
+"deepcrew/member.py" = ["SIM115"]
+"deepcrew/policy.py" = ["F401"]
+"deepcrew/providers.py" = ["S310", "F401"]
+"deepcrew/review.py" = ["S310"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m 'not e2e'"
+faulthandler_timeout = 120
+markers = ["e2e: starts the real claude binary against the local stand-in model (no network, no tokens)"]
