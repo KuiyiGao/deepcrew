@@ -18,6 +18,8 @@ import deepcrew
 from deepcrew import cli, extensions, member, policy, prompts, providers, route
 from deepcrew.board import Board, read_json, state_home, tools_dir, view, write_json
 
+REAL_ALIVE = member.alive
+
 REPO = Path(__file__).resolve().parent.parent
 KEY = "sk-" + "a" * 32
 
@@ -138,7 +140,7 @@ def test_a_prerequisite_the_leader_cancelled_shows_as_cancelled_with_the_reason(
     assert (pre["state"], pre["summary"]) == ("cancelled", "cancelled by leader: not needed")
 
 
-def test_offer_is_the_oldest_eligible_tasks_up_to_offer_size(crew, post_task):
+def test_offer_is_the_oldest_eligible_tasks_up_to_offer_size_its_own_before_those_it_may_only_ask_for(crew, post_task):
     n = crew.cfg["offer_size"]
     ts = [post_task(crew, f"t{i}", ["src/a.py"])["id"] for i in range(n + 2)]
     post_task(crew, "elsewhere", ["docs/x.md"])
@@ -146,7 +148,7 @@ def test_offer_is_the_oldest_eligible_tasks_up_to_offer_size(crew, post_task):
     crew.mark("alpha", [ts[0]], "pass", "no")
     crew.mark("alpha", [ts[1]], "skip", "offered; neither taken nor declined")
     assert [t["id"] for t in member.offer(crew, crew.member("alpha"))] == ts[2:n + 2]
-    assert [t["id"] for t in member.offer(crew, crew.member("beta"))] == [crew.tasks()[-1]["id"]]
+    assert [t["id"] for t in member.offer(crew, crew.member("beta"))] == [crew.tasks()[-1]["id"], ts[0], ts[1]]
 
 
 @pytest.mark.sandbox
@@ -453,7 +455,8 @@ def test_hook_pre_denies_a_write_outside_the_region_with_the_protocols_reason(cr
                  hook_data("NotebookEdit", notebook_path=str(project / "docs" / "n.ipynb")), hook_data("Edit", file_path=str(project))):
         out = member.hook_pre(crew, "alpha", data)["hookSpecificOutput"]
         assert (out["hookEventName"], out["permissionDecision"]) == ("PreToolUse", "deny")
-        assert '["src/"]' in out["permissionDecisionReason"] and "TaskCreate" in out["permissionDecisionReason"]
+        why = out["permissionDecisionReason"]
+        assert ("ask beta by message" in why or "ask the leader" in why) and "TaskCreate" in why
     assert member.hook_pre(crew, "alpha", hook_data("Bash", command="ls")) is None and member.hook_pre(crew, "alpha", {}) is None
     assert member.hook_pre(crew, "alpha", hook_data("TaskList")) is None
 
@@ -662,7 +665,7 @@ def test_a_claim_the_team_refuses_comes_back_with_the_reason(crew, post_task, fi
     def claim(t):
         return refusal(rules(crew, "alpha", "TaskUpdate", taskId=t["id"], status="in_progress"))
 
-    assert claim(docs) == f"task {docs['id']} changes ['docs/x.md'], outside alpha's region ['src/']"
+    assert claim(docs) == f"task {docs['id']} is for the member whose region holds docs/x.md; ask the leader by message if you should take it"
     assert claim(taken) == f"task {taken['id']} is being taken by beta"
     assert claim(after) == f"task {after['id']} waits for {a['id']}"
     assert [t["state"] for t in crew.tasks()] == ["open"] * 5 and crew.member("alpha")["task"] is None
@@ -842,8 +845,41 @@ def test_message_reaches_the_leader_a_member_or_everyone_and_carries_the_senders
     assert [(m["from"], m["task"]) for m in crew.take_mail("leader")] == [("beta", None)]
 
 
+def test_a_message_keeps_the_senders_gist_for_the_user_and_the_recipient_reads_the_text(crew):
+    assert call(crew, "message", to="leader", text="tokenizer.py and its 14 tests are in; parse() is next", gist="  The tokenizer is done. ") == {"sent": 1}
+    (m,) = crew.take_mail("leader")
+    assert m["gist"] == "The tokenizer is done." and m["text"].startswith("tokenizer.py")
+    assert "gist" in member.TOOLS[0]["inputSchema"]["properties"] and "for the user watching the team" in member.TOOLS[0]["description"]
+    call(crew, "message", to="leader", text="no gist this time")
+    assert "gist" not in crew.take_mail("leader")[0]
+
+
+def test_a_gist_for_the_user_has_no_path_or_code_and_comes_in_the_language_the_user_reads(crew, post_task):
+    for bad in ("Updated src/app.py", "Use `make` now", "see ./docs/setup.md"):
+        with pytest.raises(ValueError, match="without paths or code"):
+            call(crew, "message", to="leader", text="done", gist=bad)
+    assert call(crew, "message", to="leader", text="done", gist="The app starts faster now.") == {"sent": 1}
+    crew.update_cfg(lambda cfg: cfg.update(reply_lang="Simplified Chinese"))
+    with pytest.raises(ValueError, match="write the gist in Simplified Chinese"):
+        call(crew, "message", to="leader", text="done", gist="The app starts faster now.")
+    assert call(crew, "message", to="leader", text="done, in English", gist="\u5e94\u7528\u542f\u52a8\u66f4\u5feb\u4e86\u3002") == {"sent": 1}
+    with pytest.raises(ValueError, match="write to the user in Simplified Chinese"):
+        call(crew, "message", to="user", text="It works now.")
+    t = post_task(crew, "t", ["src/a.py"])
+    crew.claim("alpha", t["id"])
+    assert "Simplified Chinese" in refusal(rules(crew, "alpha", "TaskUpdate", taskId=t["id"], status="completed", metadata={"summary": "s", "gist": "It works."}))
+
+
+def test_every_message_a_member_gets_ends_with_the_language_the_user_reads_unless_it_is_english(crew):
+    assert member.lang_line(crew) is None and member.with_lang(crew, "body") == "body"
+    crew.update_cfg(lambda cfg: cfg.update(reply_lang="Japanese"))
+    line = member.lang_line(crew)
+    assert member.with_lang(crew, "body") == "body\n\n" + line and "Japanese" in line and "Everything else stays in English." in line
+
+
 @pytest.mark.parametrize("args", [{"to": "alpha"}, {"to": "ghost"}, {"to": ["beta"]}, {"text": 5}, {"text": " "}, {"text": "x" * 20001}, {"wait": "yes"},
-                                  {"to": "beta", "wait": True}, {"to": "leader", "wait": True, "text": " "}, {"to": "leader", "wait": True, "text": "x" * 20001}])
+                                  {"to": "beta", "wait": True}, {"to": "leader", "wait": True, "text": " "}, {"to": "leader", "wait": True, "text": "x" * 20001},
+                                  {"gist": 5}, {"gist": "x" * (member.GIST_CHARS + 1)}])
 def test_message_refuses_a_wrong_recipient_or_a_wrong_typed_or_empty_argument(crew, args):
     with pytest.raises(ValueError):
         call(crew, "message", **{"to": "beta", "text": "x", **args})
@@ -974,7 +1010,8 @@ def test_main_refuses_to_run_outside_a_member_and_the_key_helper_never_prints_to
 
 
 def test_every_prompt_template_exists_renders_and_can_come_from_another_pack(crew, tmp_path):
-    values = dict.fromkeys(("name", "team", "region", "task", "role", "body", "tasks", "messages", "id", "path", "project", "provider", "model", "notes", "artifacts", "tools", "cmd"), "X")
+    values = dict.fromkeys(("name", "team", "region", "task", "role", "body", "tasks", "messages", "id", "path", "project", "provider", "model", "notes", "artifacts",
+                            "tools", "cmd", "why"), "X")
     assert {p.stem for p in prompts.BASIC.glob("*.md")} == set(prompts.NAMES) and all(prompts.render(n, crew.cfg, **values).strip() for n in prompts.NAMES)
     assert "pass:alpha" in prompts.render("deliver_offer", crew.cfg, name="alpha", tasks="[]") and "release:alpha" in prompts.render("task_open", crew.cfg, id="1", name="alpha")
     (tmp_path / "pack").mkdir()
@@ -1068,3 +1105,92 @@ def test_every_process_of_a_member_carries_the_install_it_belongs_to(crew, monke
     assert {k: v for k, v in started[0].items() if k in want} == want and KEY not in json.dumps(started[0])
     monkeypatch.setattr(providers, "NAME", "deepcrew")
     assert member.install_env()["DEEPCREW_NAME"] == "deepcrew"
+
+
+@pytest.fixture
+def two_models(make_board, provider_table, procs):
+    prices = {"small": {"cache_miss": 1.0, "cache_hit": 0.1, "output": 10.0}, "big": {"cache_miss": 5.0, "cache_hit": 0.5, "output": 50.0}}
+    board = make_board(provider={**provider_table, "models": ["small", "big[1m]"], "efforts": ["low", "high", "max"], "fast_model": "small", "prices": prices})
+    board.cfg["member"] = {"model": "small", "effort": "low"}
+    write_json(board.dir / "team.json", board.cfg)
+    return board
+
+
+def test_a_member_started_with_strongest_runs_on_the_providers_last_model_and_the_rest_on_the_teams(two_models, monkeypatch):
+    board = two_models
+    boss = member.start(board, "boss", ["src/"], strength="strongest")
+    plain = member.start(board, "plain", ["docs/"])
+    quick = member.start(board, "quick", ["lib/"], strength="fast")
+    assert (boss["model"], boss["effort"]) == ("big[1m]", "max") and "model" not in plain and "effort" not in plain and (quick["model"], quick["effort"]) == ("small", "high")
+    assert member.member_model(board, board.member("boss")) == ("big[1m]", "max") and member.member_model(board, board.member("plain")) == ("small", "low")
+    assert member.member_model(board, board.member("quick")) == ("small", "high") and member.member_model(board, None) == ("small", "low")
+    e, p = member.env(board, board.member("boss")), member.env(board, board.member("plain"))
+    assert (e["ANTHROPIC_MODEL"], e["ANTHROPIC_DEFAULT_OPUS_MODEL"], e["ANTHROPIC_DEFAULT_SONNET_MODEL"], e["CLAUDE_CODE_EFFORT_LEVEL"]) == ("big[1m]", "big[1m]", "big[1m]", "max")
+    assert (p["ANTHROPIC_MODEL"], p["CLAUDE_CODE_EFFORT_LEVEL"]) == ("small", "low")
+    assert e["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == p["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "small"
+    assert e["CLAUDE_CODE_SUBAGENT_MODEL"] == p["CLAUDE_CODE_SUBAGENT_MODEL"] == "small"
+    board.cfg["provider"]["subagent_model"] = "tiny"
+    assert member.env(board, board.member("boss"))["CLAUDE_CODE_SUBAGENT_MODEL"] == "tiny"
+    assert "--resume" not in member.argv(board, board.member("boss"), resume=False)
+
+
+def test_a_strength_the_provider_cannot_express_is_refused_or_fitted_to_what_it_offers(two_models, make_board, provider_table, procs):
+    with pytest.raises(member.LaunchError, match="strength is one of fast, strong, strongest, not 'huge'"):
+        member.start(two_models, "bad", ["lib/"], strength="huge")
+    assert two_models.member("bad") is None and "bad" not in two_models.used_names() and procs.calls == []
+    plain = make_board("plain", provider={**provider_table, "models": ["m", "x"]})
+    assert member.strength_model(plain, "strongest") == ("x", None) and member.strength_model(plain, "strong") == ("m", None)
+    started = member.start(plain, "boss", ["src/"], strength="strongest")
+    assert (started["model"], started["effort"]) == ("x", None) and "CLAUDE_CODE_EFFORT_LEVEL" not in member.env(plain, plain.member("boss"))
+    assert member.strength_model(two_models, "fast") == ("small", "high") and member.strength_model(two_models, "strong") == ("small", "max")
+    low = make_board("low", provider={**provider_table, "models": ["m"], "efforts": ["low", "high"]})
+    assert member.strength_model(low, "strongest") == ("m", "high")
+
+
+def test_usage_prices_a_member_with_the_model_it_runs_on(two_models):
+    board = two_models
+    member.start(board, "boss", ["src/"], strength="strongest")
+    member.start(board, "plain", ["docs/"])
+    for name in ("boss", "plain"):
+        write_stream(board, name, reply("a1", input_tokens=1), {"type": "result", "usage": {"input_tokens": 100, "output_tokens": 10, "cache_read_input_tokens": 1000}})
+    assert member.usage(board, "boss")["cost_usd"] == round((100 * 5.0 + 1000 * 0.5 + 10 * 50.0) / 1e6, 6)
+    assert member.usage(board, "plain")["cost_usd"] == round((100 * 1.0 + 1000 * 0.1 + 10 * 10.0) / 1e6, 6)
+
+
+def test_a_task_is_completed_with_a_gist_for_the_user_that_only_its_holder_writes(crew, post_task):
+    t = post_task(crew, "t", ["src/a.py"])
+    crew.claim("alpha", t["id"])
+    assert "not yours" in refusal(rules(crew, "beta", "TaskUpdate", taskId=t["id"], metadata={"gist": "done"}))
+    assert "at most" in refusal(rules(crew, "alpha", "TaskUpdate", taskId=t["id"], metadata={"gist": "x" * (member.GIST_CHARS + 1)}))
+    assert rules(crew, "alpha", "TaskUpdate", taskId=t["id"], status="completed", metadata={"summary": "tokenizer.py, 14 tests", "gist": "The tokenizer works."}) is None
+
+
+def test_a_pitch_alone_asks_for_another_regions_task(crew, post_task):
+    t = post_task(crew, "bench", ["bench/"])
+    why = refusal(rules(crew, "alpha", "TaskUpdate", taskId=t["id"], metadata={"pitch:alpha": "I wrote the parser"}))
+    assert why.startswith(f"Noted: you asked for task {t['id']}, outside your region")
+    assert list(crew.task(t["id"])["volunteers"]) == ["alpha"] and crew.task(t["id"])["pitches"] == {"alpha": "I wrote the parser"}
+
+
+def test_living_asks_ps_once_for_every_member_and_each_alone_when_ps_refuses_the_list(monkeypatch):
+    monkeypatch.setattr(member, "alive", REAL_ALIVE)
+    monkeypatch.setattr(member.providers, "is_windows", lambda: False)
+    ms = [{"name": "up", "pid": 11, "session": "s-up"}, {"name": "reused", "pid": 12, "session": "s-old"}, {"name": "gone", "pid": 13, "session": "s-gone"},
+          {"name": "never", "pid": None, "session": "s-never"}]
+    table = {"11": "python -m deepcrew drive s-up", "12": "vim notes.txt"}
+    asked, refuse = [], []
+
+    def ps(argv, **kw):
+        asked.append(argv[-1])
+        if refuse and "," in argv[-1]:
+            return SimpleNamespace(returncode=1, stdout="")
+        if argv[2] == "command=":
+            return SimpleNamespace(returncode=0, stdout=table.get(argv[-1], ""))
+        return SimpleNamespace(returncode=0, stdout="".join(f"{p} {table[p]}\n" for p in argv[-1].split(",") if p in table))
+    monkeypatch.setattr(member, "subprocess", SimpleNamespace(run=ps))
+    assert member.living(ms) == {"up"} and asked == ["11,12,13"]
+    asked.clear()
+    refuse.append(True)
+    assert member.living(ms) == {"up"} and asked == ["11,12,13", "11", "12", "13"]
+    asked.clear()
+    assert member.alive(ms[0]) and asked == ["11"]

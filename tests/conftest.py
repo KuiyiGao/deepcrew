@@ -18,7 +18,7 @@ def leader_env() -> list[str]:
     return [v for v in os.environ if v.startswith("DEEPCREW_") or v in LEADER_ENV]
 
 
-for var in set(leader_env()) - {"DEEPCREW_CLAUDE"}:
+for var in set(leader_env()) - {"DEEPCREW_CLAUDE", "DEEPCREW_SCALE_N"}:
     del os.environ[var]
 
 from deepcrew import board as board_module

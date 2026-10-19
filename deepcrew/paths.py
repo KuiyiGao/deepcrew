@@ -71,6 +71,11 @@ def overlap(a: list[str], b: list[str]) -> bool:
     return any(covers([x], y) or covers([y], x) for x in a for y in b)
 
 
+def minimal(entries) -> list[str]:
+    entries = norm_all(entries)
+    return [e for e in entries if not any(o != e and covers([o], e) for o in entries)]
+
+
 def relpath(root: Path, file_path: str) -> str | None:
     p = Path(file_path)
     try:

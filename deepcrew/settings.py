@@ -9,13 +9,14 @@ import time
 from pathlib import Path
 
 from . import member, policy, presets, prompts, providers
+from . import route
 from .board import Board, default_shared_dir, read_json, read_jsonl, state_home, team_path, write_json
 
 DEFAULT_TOOLS = ("Agent", "Bash", "Read", "Edit", "Write", "Glob", "Grep", "NotebookEdit", "WebFetch", "WebSearch", "TaskOutput", "TaskStop",
                  "TaskCreate", "TaskGet", "TaskList", "TaskUpdate")
 OPTIONAL_TOOLS = ("Agent", "NotebookEdit", "WebFetch", "WebSearch", "TaskOutput", "TaskStop")
 DEFAULTS = {"max_active": 8, "hold_s": 600, "max_turns": 200, "approval_timeout_s": 300, "question_timeout_s": 1800, "offer_size": 8,
-            "note_max_chars": 20000}
+            "note_max_chars": 20000, "propose_after_s": route.UNTAKEN_S}
 MAX_MEMBERS = 32
 PKG_PARENT = str(Path(__file__).resolve().parent.parent)
 SANDBOX_DOMAINS = ("pypi.org", "files.pythonhosted.org", "registry.npmjs.org")

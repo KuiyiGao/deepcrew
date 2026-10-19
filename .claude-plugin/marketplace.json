@@ -3,6 +3,7 @@
   "owner": {
     "name": "KuiyiGao"
   },
+  "description": "DeepCrew's plugin for the leader: the /deepcrew skill, the crew's requests above your prompt, and /crew",
   "plugins": [
     {
       "name": "deepcrew",

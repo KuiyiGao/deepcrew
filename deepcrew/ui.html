@@ -7,9 +7,9 @@
 <style>
 :root {
   color-scheme: light;
-  --bg: #ffffff; --fg: #1b1f23; --muted: #5b6570; --line: #d0d7de; --card: #f6f8fa;
-  --accent: #1f5fd6; --accent-fg: #ffffff; --bad: #b3261e; --good: #1a7f37; --warn: #b45f00;
-  --a-orange: #C0603C; --a-gold: #A97A1F; --a-sea: #3E8FB0;
+  --bg: #F5F4EE; --fg: #1F1E1D; --muted: #6B6A64; --line: #E3E0D6; --card: #FCFBF8;
+  --accent: #C2613F; --accent-fg: #ffffff; --bad: #B5443A; --good: #3F7D4C; --warn: #A6670F;
+  --a-orange: #C96442; --a-gold: #A97A1F; --a-sea: #4A7EA3;
   --ease: cubic-bezier(.2, .8, .2, 1);
   interpolate-size: allow-keywords;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -24,27 +24,31 @@
   --t-section: var(--fw-section) var(--fs-section)/var(--lh-section) var(--font);
   --t-lead: var(--fw-lead) var(--fs-lead)/var(--lh-lead) var(--font);
   --t-field: var(--fw-body) var(--fs-label)/var(--lh-body) var(--font);
+  --serif: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Georgia, serif; --fw-serif: 500;
+  --t-label-serif: var(--fw-serif) var(--fs-label)/var(--lh-label) var(--serif);
+  --t-section-serif: var(--fw-serif) var(--fs-section)/var(--lh-section) var(--serif);
+  --t-lead-serif: var(--fw-serif) var(--fs-lead)/var(--lh-lead) var(--serif);
 }
 :root[data-theme=dark] {
   color-scheme: dark;
-  --bg: #14171a; --fg: #e6e9ec; --muted: #9aa5b1; --line: #343b43; --card: #1d2227;
-  --accent: #6ea0ff; --accent-fg: #0b1220; --bad: #ff8a80; --good: #5fd380; --warn: #f0a73a;
-  --a-orange: #E07A52; --a-gold: #E8B04A; --a-sea: #7FB8CF;
+  --bg: #262624; --fg: #ECEAE3; --muted: #A8A59C; --line: #42403B; --card: #302F2C;
+  --accent: #D97757; --accent-fg: #1F1E1D; --bad: #E8897C; --good: #8CC08A; --warn: #E3A64F;
+  --a-orange: #D97757; --a-gold: #E0AE5A; --a-sea: #8DB8D6;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme=auto] {
     color-scheme: dark;
-    --bg: #14171a; --fg: #e6e9ec; --muted: #9aa5b1; --line: #343b43; --card: #1d2227;
-    --accent: #6ea0ff; --accent-fg: #0b1220; --bad: #ff8a80; --good: #5fd380; --warn: #f0a73a;
-  --a-orange: #E07A52; --a-gold: #E8B04A; --a-sea: #7FB8CF;
+    --bg: #262624; --fg: #ECEAE3; --muted: #A8A59C; --line: #42403B; --card: #302F2C;
+    --accent: #D97757; --accent-fg: #1F1E1D; --bad: #E8897C; --good: #8CC08A; --warn: #E3A64F;
+    --a-orange: #D97757; --a-gold: #E0AE5A; --a-sea: #8DB8D6;
   }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: var(--t-field); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font: var(--t-lead); margin: 0; }
+h1 { font: var(--t-lead-serif); margin: 0; }
 h1 .path { font: var(--t-meta); color: var(--muted); margin-left: 6px; }
-h2 { font: var(--t-section); margin: 0 0 8px; }
+h2 { font: var(--t-section-serif); margin: 0 0 8px; }
 section { border-top: 1px solid var(--line); padding: 16px 0; }
 p { margin: 0 0 8px; }
 code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -401,6 +405,7 @@ let team = null;
 const TEAM_LABEL = {max_active: "active members", hold_s: "idle hold", max_turns: "max turns", approval_timeout_s: "approval timeout",
   question_timeout_s: "question timeout", offer_size: "tasks per offer", note_max_chars: "note limit", project_memory: "project CLAUDE.md", review: "reviewer",
   provider: "provider",
+  propose_after_s: "propose after",
 };
 
 async function api(path, body) {
@@ -504,7 +509,7 @@ function reveal() {
 }
 
 const PixelCrew = (() => {
-  const NS = "http://www.w3.org/2000/svg", FRAME_MS = 60, W = 24, H = 20, EYE = "#F5F4EF", BUBBLE = "#9FD3E6", RED = "#C0603C";
+  const NS = "http://www.w3.org/2000/svg", FRAME_MS = 60, W = 24, H = 20, EYE = "#F5F4EF", BUBBLE = "#9FD3E6", RED = "#C0603C", CREAM = "#EFE9DE";
   const BODY = ["....oooooooo....", "..oooooooooooo..", ".ooovvvvvvvvooo.", ".oovvvvvvvvvvoo.", "boovvvvvvvvvvoob", "boovvvvvvvvvvoob",
     ".oovvvvvvvvvvoo.", ".ooovvvvvvvvooo.", "..oooooooooooo..", "....cccccccc....", "..oooooosooooo..", ".ooooosososoooo.",
     ".oooooosssooooo.", ".ooooosososoooo.", ".oo.oooosooo.oo.", "....ooo..ooo...."];
@@ -514,12 +519,16 @@ const PixelCrew = (() => {
     happy: [[6, 4], [5, 5], [7, 5], [10, 4], [9, 5], [11, 5]], closed: [[5, 5], [6, 5], [9, 5], [10, 5]],
   };
   const run = (x0, x1, y, c) => Array.from({length: x1 - x0 + 1}, (_, i) => [x0 + i, y, c]);
+  const raised = (dx) => [[20 + dx, 0, "#E8B04A"], [22 + dx, 0, "#E8B04A"], ...run(19 + dx, 22 + dx, 1, "#E8B04A"), ...run(19 + dx, 22 + dx, 2, "#E8B04A"),
+    ...run(18 + dx, 22 + dx, 3, "#E8B04A"), ...run(19 + dx, 22 + dx, 4, "#E8B04A"), [20 + dx, 5, "#E8B04A"], [21 + dx, 5, "#E8B04A"],
+    ...[6, 7].flatMap((y) => [[20, y, "#C9962F"], [21, y, "#C9962F"]]), [20, 8, "#C9962F"]];
   const wrench = (dx, dy) => [[19 + dx, 11 + dy, "#CFCBC1"], [21 + dx, 11 + dy, "#CFCBC1"], ...run(19 + dx, 21 + dx, 12 + dy, "#CFCBC1"),
     ...[13, 14, 15, 16, 17].map((y) => [20 + dx, y + dy, "#CFCBC1"])];
   const PROPS = {
     tool: wrench(0, 0), toolUp: wrench(-1, -2),
     z: [...run(18, 21, 0, "#8E8C86"), [20, 1, "#8E8C86"], [19, 2, "#8E8C86"], ...run(18, 21, 3, "#8E8C86")],
     alert: [[20, 0, "#E8B04A"], [20, 1, "#E8B04A"], [20, 3, "#E8B04A"]],
+    hand: raised(0), handWave: raised(1),
     mail: [...[14, 15, 16, 17, 18].flatMap((y) => run(17, 23, y, EYE)), [17, 14, RED], [23, 14, RED], [18, 15, RED], [22, 15, RED], [19, 16, RED], [21, 16, RED], [20, 17, RED]],
     lens: [...run(20, 22, 10, EYE), ...run(20, 22, 14, EYE), ...[11, 12, 13].flatMap((y) => [[19, y, EYE], [23, y, EYE], ...run(20, 22, y, "#7FB8CF")]),
       [19, 15, "#8E8C86"], [19, 16, "#8E8C86"], [19, 17, "#8E8C86"]],
@@ -533,7 +542,7 @@ const PixelCrew = (() => {
     active: [...hold({eyes: "front", prop: "tool"}, 5), ...hold({eyes: "front", prop: "toolUp"}, 3), ...hold({eyes: "front", prop: "tool"}, 5),
       ...hold({eyes: "right", prop: "toolUp"}, 3), ...hold({eyes: "right", prop: "tool"}, 8)],
     starting: [...hold({eyes: "up"}, 6), ...hold({eyes: "front", dy: -1}, 6)],
-    waiting: [...hold({eyes: "up", prop: "alert"}, 10), ...hold({eyes: "up"}, 6)],
+    waiting: [...hold({eyes: "up", prop: "hand"}, 7), ...hold({eyes: "up", prop: "handWave"}, 7)],
     idle: [...hold({eyes: "closed", prop: "z"}, 16), ...hold({eyes: "closed"}, 16)],
     failed: [{eyes: "closed"}],
     calm: [...hold({eyes: "front"}, 60), ...hold({eyes: "closed"}, 2)],
@@ -544,11 +553,11 @@ const PixelCrew = (() => {
     done: [...hold({eyes: "happy", dy: 1}, 2), ...hold({eyes: "happy", dy: -1}, 3), {eyes: "happy"}, ...hold({eyes: "happy", dy: 1}, 2),
       ...hold({eyes: "happy", dy: -1}, 3), {eyes: "front"}],
     look: [...hold({eyes: "right"}, 5), ...hold({eyes: "left"}, 5), {eyes: "front"}],
-    mail: hold({eyes: "happy", prop: "mail"}, 14), read: hold({eyes: "right", prop: "lens"}, 14), ask: hold({eyes: "up", prop: "alert"}, 14),
+    mail: hold({eyes: "happy", prop: "mail"}, 14), read: hold({eyes: "right", prop: "lens"}, 14), ask: hold({eyes: "up", prop: "hand"}, 14),
     work: [...hold({eyes: "front", prop: "toolUp"}, 2), ...hold({eyes: "front", prop: "tool"}, 2), ...hold({eyes: "front", prop: "toolUp"}, 2),
       ...hold({eyes: "front", prop: "tool"}, 2)],
   };
-  const STILL = {active: {eyes: "front", prop: "tool"}, starting: {eyes: "up"}, waiting: {eyes: "up", prop: "alert"}, idle: {eyes: "closed", prop: "z"},
+  const STILL = {active: {eyes: "front", prop: "tool"}, starting: {eyes: "up"}, waiting: {eyes: "up", prop: "hand"}, idle: {eyes: "closed", prop: "z"},
     failed: {eyes: "closed"}, calm: {eyes: "front"}, ready: {eyes: "front"}};
   const BUBBLY = new Set(["active", "ready"]);
   const still = () => motion.matches;
@@ -616,9 +625,9 @@ const PixelCrew = (() => {
   }
 
   class Diver extends Sprite {
-    constructor({suit = "fast", color = null, size = 2, state = "ready", attrs = {}} = {}) {
+    constructor({suit = "fast", color = null, trim = null, body = CREAM, size = 2, state = "ready", attrs = {}} = {}) {
       super(W, H, size, attrs);
-      Object.assign(this, {suitName: suit, color, state, seq: null, at: 0, glow: 0, goal: 0, shown: null});
+      Object.assign(this, {suitName: suit, color, trim, body, state, seq: null, at: 0, glow: 0, goal: 0, shown: null});
       this.start();
     }
     set(state) { if (state !== this.state) { this.state = state; this.frame(last, true); } return this; }
@@ -626,8 +635,10 @@ const PixelCrew = (() => {
     play(name) { if (!still() && ONCE[name]) { this.seq = ONCE[name]; this.at = 0; wake(); } return this; }
     tint(x) { this.goal = Math.max(0, Math.min(1, x)); if (still()) this.glow = this.goal; wake(); return this; }
     colors() {
-      const own = this.color ? [this.color, "color-mix(in srgb, " + this.color + " 62%, #000)", EYE, EYE] : SUITS[this.suitName] || SUITS.fast;
-      const base = this.state === "idle" || this.state === "failed" ? SUITS[this.state] : own;
+      const tr = this.trim, grey = (c, p) => "color-mix(in srgb, " + c + " " + p + "%, #8E8C86)";
+      const own = tr ? [this.body, tr, tr, tr] : this.color ? [this.color, "color-mix(in srgb, " + this.color + " 62%, #000)", EYE, EYE] : SUITS[this.suitName] || SUITS.fast;
+      const rest = tr ? [grey(this.body, 80), grey(tr, 45), grey(tr, 45), grey(tr, 45)] : SUITS.idle;
+      const base = this.state === "failed" ? SUITS.failed : this.state === "idle" ? rest : own;
       const t = Math.round(this.glow * 20) / 20;
       return t ? [0, 1].map((i) => "color-mix(in srgb, " + base[i] + " " + Math.round(100 - t * 70) + "%, " + RED + ")").concat(base.slice(2)) : base;
     }
@@ -1020,6 +1031,7 @@ $("#done").onclick = async () => {
       loadTeam();
       return;
     }
+    window.dispatchEvent(new Event("deepcrew-done"));
     const note = document.createElement("p");
     note.textContent = "Saved ✓";
     document.body.replaceChildren(note);
@@ -1541,6 +1553,7 @@ document.addEventListener("deepcrew:changed", loadTeam);
 document.addEventListener("visibilitychange", () => { if (document.hidden) clearTimeout(teamTimer); else loadTeam(); });
 
 addEventListener("focus", refresh);
+addEventListener("deepcrew-env", refresh);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 setTimeout(reveal, 900);
 api("/api/state").then(render, (e) => say("m-save", e.message, true)).finally(reveal);

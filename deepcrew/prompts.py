@@ -10,7 +10,7 @@ NAMES = ("member_system", "member_start", "member_wake", "deliver_offer", "deliv
 FILLED = {
     "member_system": {"team", "notes", "artifacts", "tools"}, "member_start": {"name", "team", "region", "role", "task"},
     "member_wake": {"name", "team", "region", "role", "task", "body"}, "deliver_offer": {"name", "tasks"}, "deliver_mail": {"messages"},
-    "task_open": {"id", "name"}, "deny_outside": {"path", "region"}, "leader": {"team", "project", "provider", "model", "cmd"}, "reviewer": set()}
+    "task_open": {"id", "name"}, "deny_outside": {"path", "region", "why"}, "leader": {"team", "project", "provider", "model", "cmd"}, "reviewer": set()}
 
 
 def _bare_name(chosen: str) -> bool:

@@ -16,7 +16,7 @@ SIZES = {
     "crowd": {"label": "Crowd", "summary": "Up to eight members, for wide, independent work. The default.",
               "values": {"DEEPCREW_MAX_ACTIVE": "8", "DEEPCREW_HOLD_S": "600", "DEEPCREW_OFFER_SIZE": "8"}},
     "large": {"label": "Large",
-              "summary": "Up to sixteen members, for big projects split into many independent parts.",
+              "summary": "Up to sixteen members for big projects: work is posted in rounds and idle members help running tasks.",
               "values": {"DEEPCREW_MAX_ACTIVE": "16", "DEEPCREW_HOLD_S": "600", "DEEPCREW_OFFER_SIZE": "8"}},
 }
 SCOPES = {

@@ -52,7 +52,7 @@ def test_the_page_opens_only_with_the_token(page):
     status, reply, body = page.call("GET", f"/?t={page.token}")
     assert status == 200 and b"<title>deepcrew</title>" in body and b"tablist" not in body
     assert reply.getheader("Cache-Control") == "no-store"
-    assert reply.getheader("Content-Security-Policy") == "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    assert reply.getheader("Content-Security-Policy") == "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:"
     assert page.call("GET", "/")[0] == 403
     assert page.call("GET", "/?t=wrong")[0] == 403
 
@@ -365,13 +365,30 @@ def test_the_page_is_named_after_the_extensions_that_add_a_tab(monkeypatch):
 
     section.tab = False
 
-    points = [("pkg.zeta", tab), ("pkg.mod:alpha", tab), ("pkg.section", section)]
+    def stand_in(project, team):
+        return Demo([])
+
+    stand_in.replaces = "live"
+
+    points = [("pkg.zeta", tab), ("pkg.mod:alpha", tab), ("pkg.section", section), ("pkg.own", stand_in)]
     monkeypatch.setattr(cli, "ui_label", REAL_UI_LABEL)
-    assert ui.tab_names() == [] and cli.ui_label() == "settings"
+    assert ui.tab_names() == [] and cli.ui_label() == "team call"
     declare(monkeypatch, *points[2:])
-    assert ui.tab_names() == [] and cli.ui_label() == "settings"
+    assert ui.tab_names() == [] and cli.ui_label() == "team call"
     declare(monkeypatch, *points)
-    assert ui.tab_names() == ["alpha", "zeta"] and cli.ui_label() == "alpha, zeta"
+    assert ui.tab_names() == ["alpha", "zeta"] and cli.ui_label() == "team call, alpha, zeta"
+
+
+def test_the_page_has_the_live_view_of_its_own_and_an_extension_of_the_same_name_stands_in_for_it(tmp_path):
+    own = ui.builtin_pages(tmp_path, "t")
+    assert [e.name for e in own] == ["live"] and own[0].routes and own[0].streams and b"</script>" in own[0].html
+
+    class StandIn(ui.Extension):
+        name = "live"
+
+    other, stand_in = Demo([]), StandIn()
+    assert ui.with_builtin(own, [other]) == [own[0], other]
+    assert ui.with_builtin(own, [stand_in, other]) == [stand_in, other]
 
 
 def test_serve_ends_the_extensions_on_the_timeout_too():
@@ -419,7 +436,8 @@ def test_a_team_has_one_page_and_its_address_is_in_run_ui_json(served, lead):
     first = served()
     info = first.info
     path = lead.dir / "run" / "ui.json"
-    assert json.loads(path.read_text()) == info and set(info) == {"url", "port", "pid", "started"} and info["pid"] == os.getpid()
+    assert json.loads(path.read_text()) == info and set(info) == {"url", "port", "pid", "started", "version"} and info["pid"] == os.getpid()
+    assert info["version"] == ui.__version__
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert first.call("GET", "/api/ping")[2]["ok"] is True and first.call("GET", "/api/ping")[2]["team"] == "main"
     assert first.call("GET", "/api/ping", auth="wrong")[0] == 403 and first.call("GET", "/api/ping", host="evil.example")[0] == 403
@@ -545,6 +563,18 @@ def test_start_background_starts_one_detached_server_and_then_hands_out_its_url(
     assert url == ui.running(lead.dir)["url"] and caller(url).call("GET", "/api/ping")[0] == 200
     assert ui.start_background(lead.root, "main", lead.dir) == url and len(calls) == 1
     assert caller(url).call("GET", f"/?t={caller(url).token}")[0] == 200
+
+
+def test_start_background_replaces_a_page_that_an_older_deepcrew_started(lead, monkeypatch):
+    calls = []
+    monkeypatch.setattr(ui.subprocess, "Popen", FakeServer("serves", calls))
+    url = ui.start_background(lead.root, "main", lead.dir, 123.0)
+    path = lead.dir / "run" / ui.UI_FILE
+    old = {k: v for k, v in json.loads(path.read_text()).items() if k != "version"}
+    path.write_text(json.dumps(old))
+    again = ui.start_background(lead.root, "main", lead.dir, 123.0)
+    assert len(calls) == 2 and ui.running(lead.dir)["version"] == ui.__version__
+    assert again == url and caller(again).call("GET", "/api/ping")[0] == 200
 
 
 def test_start_background_names_the_log_when_the_server_does_not_come_up(lead, monkeypatch):
@@ -711,6 +741,7 @@ ABS = os.path.abspath(os.sep + "secrets")
     ("DEEPCREW_SANDBOX_ALLOW_WRITE", "", ""),
     ("DEEPCREW_TOOLS_OFF", "Agent, WebFetch", "Agent,WebFetch"),
     ("DEEPCREW_TOOLS_OFF", "", ""),
+    ("DEEPCREW_PROPOSE_AFTER_S", "90", "90"),
     ("DEEPCREW_MAX_ACTIVE", " 32 ", "32"),
     ("DEEPCREW_MAX_ACTIVE", "016", "16"),
 ])
@@ -729,6 +760,8 @@ def test_checked_accepts_the_values_the_advanced_keys_take(key, good, stored):
     ("DEEPCREW_SANDBOX_ALLOW_WRITE", "build", "not an absolute path"),
     ("DEEPCREW_TOOLS_OFF", "Bash", "DEEPCREW_TOOLS_OFF: Bash cannot be switched off"),
     ("DEEPCREW_TOOLS_OFF", "agent", "cannot be switched off"),
+    ("DEEPCREW_PROPOSE_AFTER_S", "0", "DEEPCREW_PROPOSE_AFTER_S must be a positive whole number"),
+    ("DEEPCREW_PROPOSE_AFTER_S", "soon", "positive whole number"),
 ])
 def test_checked_refuses_what_the_advanced_keys_must_not_take(key, bad, message):
     with pytest.raises(ui.Refused, match=re.escape(message)):
@@ -737,10 +770,10 @@ def test_checked_refuses_what_the_advanced_keys_must_not_take(key, bad, message)
 
 def test_the_advanced_keys_are_saved_to_the_env_file_and_come_back_in_the_state(page):
     values = {"DEEPCREW_ALLOW_OFF": "wc", "DEEPCREW_SANDBOX_DENY_READ": "none",
-              "DEEPCREW_SANDBOX_ALLOW_WRITE": f"{ABS}", "DEEPCREW_TOOLS_OFF": "Agent,TaskStop", "DEEPCREW_NOTE_MAX_CHARS": "45"}
+              "DEEPCREW_SANDBOX_ALLOW_WRITE": f"{ABS}", "DEEPCREW_TOOLS_OFF": "Agent,TaskStop", "DEEPCREW_PROPOSE_AFTER_S": "45"}
     status, _, state = page.call("POST", "/api/save", {"values": values})
     assert status == 200 and state["values"] == values and "DEEPCREW_SANDBOX_DENY_READ=none" in env_text()
-    assert page.call("POST", "/api/save", {"values": {"DEEPCREW_NOTE_MAX_CHARS": "0", "DEEPCREW_TOOLS_OFF": "Agent"}})[0] == 400
+    assert page.call("POST", "/api/save", {"values": {"DEEPCREW_PROPOSE_AFTER_S": "0", "DEEPCREW_TOOLS_OFF": "Agent"}})[0] == 400
     assert page.call("GET", "/api/state")[2]["values"] == values
 
 
@@ -930,5 +963,6 @@ def test_the_page_has_the_requests_strip_above_the_settings(page):
         assert f'id="{ident}"' in text, ident
     assert text.index('id="waiting"') < text.index("<main>") and text.index('class="bar"') < text.index("<script>")
     assert 'data-key="DEEPCREW_MAX_ACTIVE">' in text and "<details id=" not in text
+    assert 'data-key="DEEPCREW_PROPOSE_AFTER_S"' not in text
     assert "Waiting for you" in text and "/api/requests" in text and "deepcrew:changed" in text and "<nav" not in text
     assert '<span class="tag" id="waiting-n" aria-live="polite">' in text and '<div id="waiting-list" tabindex="-1">' in text

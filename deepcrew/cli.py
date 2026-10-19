@@ -14,11 +14,13 @@ from pathlib import Path
 
 from . import __version__
 from . import extensions, member, policy, presets, prompts, providers, review, route, toolkit
-from .board import MEMBER_NAME, Board, read_json, read_jsonl, region_at, state_home, team_path, tools_dir, write_json
+from .board import LANGS, MEMBER_NAME, Board, in_lang, read_json, read_jsonl, region_at, reply_lang, state_home, team_path, tools_dir, write_json
+from .board import SUMMARY_PARTS
 
 from .doctor import SANDBOX_TOOLS, check, conformance, fallback_checks, host_checks, provider_checks
 from .inbox import ADD_DIR_HINT, QUIET, add_dir, failed_words, inbox_items, money, page_url, share_words, span, utc_at
 from .inbox import widened_words, with_widening, _item_line
+from .inbox import _proposal_lines
 from .settings import DEFAULTS, DENY_READ, OPTIONAL_TOOLS, PAGE_KEYS, SETUP_FILE, UNTRACKED_AT_START, UNTRACKED_MAX
 from .settings import allow_setting, claude_bin, create_team, default_provider, fallback_setting, fallback_tables, key_advice, key_place
 from .settings import left_out, listed, member_config, on_provider, page_checked, positive, provider_view, refresh_install, refresh_key_copy
@@ -47,8 +49,11 @@ def audit(board: Board) -> dict:
     edits: dict[str, set[str]] = {}
     shells: list[dict] = []
     last: dict[str, float] = {}
+    helped: dict[str, set[tuple[str, str]]] = {}
     members, files = board.members(), []
     by_name = {m["name"]: m for m in members}
+    scopes = {t["id"]: t["scope"] or [] for t in board.tasks()}
+    leased: dict[str, set[str]] = {}
     foreign: dict[str, set[str]] = {}
     for e in read_jsonl(board.dir / "edits.jsonl"):
         if e["tool"] == "Bash":
@@ -56,8 +61,12 @@ def audit(board: Board) -> dict:
             continue
         edits.setdefault(e["path"], set()).add(e["member"])
         last[e["path"]] = max(last.get(e["path"], 0), e["ts"])
-        if not ((m := by_name.get(e["member"])) and policy.covers(region_at(m, e["ts"]), e["path"])):
+        if e.get("task") and policy.covers(scopes.get(e["task"], []), e["path"]):
+            leased.setdefault(e["path"], set()).add(e["member"])
+        elif not ((m := by_name.get(e["member"])) and policy.covers(region_at(m, e["ts"]), e["path"])):
             foreign.setdefault(e["path"], set()).add(e["member"])
+        if e.get("for_owner"):
+            helped.setdefault(e["path"], set()).add((e["member"], e["for_owner"]))
     start = read_json(board.dir / UNTRACKED_AT_START) if (board.dir / UNTRACKED_AT_START).exists() else {}
     before = untracked_files(board.root) if start and "" not in start else {}
     too_many = "" in start or "" in before
@@ -65,13 +74,15 @@ def audit(board: Board) -> dict:
     for path in sorted(git("diff", "--relative", "--name-only", base) | (git("ls-files", "--others", "--exclude-standard") - kept)):
         owner = next((m["name"] for m in members if policy.covers(m["region"], path)), None)
         by = sorted(edits.get(path, set()))
-        allowed = {owner}
+        allowed = {owner, *leased.get(path, ()), *(who for who, for_owner in helped.get(path, ()) if for_owner == owner)}
         found = _shell_writers(board.root / path, shells, after=last.get(path, 0))
         who = list(dict.fromkeys(e["member"] for e in found))
-        flags = ((["outside_every_region"] if owner is None else []) + (["shell_edit"] if found else ["no_logged_edit"] if not by else [])
+        unowned = owner is None and not leased.get(path)
+        flags = ((["outside_every_region"] if unowned else []) + (["shell_edit"] if found else ["no_logged_edit"] if not by else [])
                  + (["edited_by_non_owner"] if owner and (foreign.get(path, set()) - allowed or who and not set(who) & allowed) else []))
         shell = {"member": who[0], "command": found[0]["command"], **({"others": who[1:]} if who[1:] else {})} if found else None
-        files.append({"path": path, "owner": owner, "edited_by": by, "flags": flags, **({"shell": shell} if shell else {})})
+        files.append({"path": path, "owner": owner, "edited_by": by, "flags": flags, **({"shell": shell} if shell else {}),
+                      **({"leased_to": sorted(leased[path])} if leased.get(path) else {})})
     return {"base": base, "dirty_at_start": board.cfg["git"].get("dirty", False), "files": files, "untracked_unchanged": len(kept),
             "untracked_too_many": too_many}
 
@@ -123,7 +134,7 @@ def release_leader(team_dir: Path) -> None:
 
 def ui_label(project=None) -> str:
     from . import ui
-    return ", ".join(ui.tab_names(project)) or "settings"
+    return ", ".join(["team call", *ui.tab_names(project)])
 
 
 def start_page(project: Path, team: str, team_dir: Path) -> str | None:
@@ -211,6 +222,8 @@ def summary(board: Board, url: str | None) -> list[str]:
              f"key       {'saved in ' + place if place else 'not saved yet'}; it"
              + ("" if "this computer" in place else " stays on this computer and") + f" goes only to {c['provider']['base_url']}"]
     lines += [reviewer_line(board), budget_line(member.budget_state(board))]
+    if (lang := reply_lang(board.live_cfg())) != LANGS[0]:
+        lines.append(f"replies   in {lang} for the user, on the page and in this chat; the crew works in English ({CMD} lang NAME to change)")
     if line := prices_line(c["provider"]):
         lines.append(line)
     if line := memory_line(board):
@@ -362,7 +375,7 @@ def cmd_up(a) -> int:
                             pack=providers.setting("DEEPCREW_PROMPT_PACK"), shared_dir=shared, **flags)
         providers.env_file_set({"DEEPCREW_PROVIDER": p["name"], "DEEPCREW_MODEL": member_cfg["model"],
                                 "DEEPCREW_EFFORT": member_cfg["effort"] or "default"})
-    board.reap(member.alive)
+    board.reap(member.living)
     record_leader(project, a.team, board.dir)
     before = setup_state(board)
     needs = {"key": not has_key, "confirm": not chosen or bool(before and "confirm" in before["missing"])}
@@ -552,8 +565,10 @@ def _routing_lines(r: dict | None) -> list[str]:
     if not r:
         return []
     lines = [f"  resumed {n}" for n in r["woken"]]
+    lines += [f"  task {t} went to {n}" for t, n in r.get("given", {}).items()]
     lines += [f"  blocked {b['task']}: {b['reason']}" for b in r["blocked"]] + [f"  note: {n}" for n in r.get("notes", [])]
     lines += [f"  waiting for a free slot: {w}" for w in r["waiting"]] + [f"  error: {e}" for e in r["errors"]]
+    lines += _proposal_lines([g for g in r["proposals"] if g["due"]])
     return lines
 
 
@@ -577,21 +592,27 @@ def turn_text(m: dict) -> str:
 
 def cmd_status(a) -> int:
     board = _board(a)
-    board.reap(member.alive)
+    board.reap(member.living)
     tasks, members, plan = board.tasks(), board.members(), route.plan(board)
     usage = {m["name"]: member.usage(board, m["name"]) for m in members}
     obj = {"tasks": tasks, "members": members, "usage": usage, "blocked": plan["blocked"], "waiting": plan["waiting"], "notes": plan["notes"],
            "permission_requests": with_widening(board, board.pending("perms")), "questions": board.pending("questions"),
            "unread": len(board.mail_pending("leader")),
            "budget": member.budget_state(board), "paused": board.paused(), "provider": provider_view(board.cfg), "reviewer": review.tally(board)}
+    obj["proposals"] = plan["proposals"]
     url = page_url(board.dir)
     obj["summary"], obj["page_url"] = summary(board, url), url
     lines = [*obj["summary"], "", "tasks:"] + [f"  {t['id']} {t['state']:9} {t['owner'] or '-':12} {t['title']}  scope={t['scope']}" for t in tasks]
     lines += ["members:"] + [f"  {m['name']:12} {m['state']:8} task={m['task'] or '-':6} region={m['region']}  requests={usage[m['name']]['requests']}"
                              + turn_text(m)
+                             + (f"  helps={plan['helpers'][m['name']]['task']}" if m["name"] in plan["helpers"] else "")
                              + (f"  cost=${usage[m['name']]['cost_usd']:.4f}" if "cost_usd" in usage[m["name"]] else "")
                              for m in members]
     lines += [f"blocked {b['task']}: {b['reason']}" for b in plan["blocked"]] + [f"note: {n}" for n in plan["notes"]]
+    lines += _proposal_lines(plan["proposals"])
+    lines += [_item_line("capacity", plan["capacity"])] if plan["capacity"] else []
+    obj["capacity"], obj["helpers"], obj["leader_summary"] = plan["capacity"], plan["helpers"], (board.summaries(1) or [None])[0]
+    lines += [f"summary   {obj['leader_summary']['text'].splitlines()[0][:160]}"] if obj["leader_summary"] else []
     lines += [f"{len(obj['permission_requests'])} permission request(s), {len(obj['questions'])} question(s), {obj['unread']} unread "
               f"message(s): {CMD} inbox"]
     _print(a, obj, lines)
@@ -642,7 +663,8 @@ def cmd_inbox(a) -> int:
     lines = [_item_line(kind, x) + ("" if key in new else "   (shown before)") for key, (kind, x) in items.items() if kind != "answer" or key in new]
     lines += [f"{m['kind']} from {m['from']}" + (f" on {m['task']}" if m["task"] else "") + f": {m['text']}" for m in msgs]
     url = page_url(board.dir)
-    kinds = ("perm", "question", "blocked", "note", "answer", "setup", "crew", "link", "budget", "prices", "provider", "ext")
+    kinds = ("perm", "question", "proposal", "blocked", "note", "answer", "choose", "capacity", "summary", "setup", "crew", "link", "budget",
+             "prices", "provider", "ext")
     grouped = {k: [x for key, (kind, x) in items.items() if kind == k and (k != "answer" or key in new)] for k in kinds}
     obj = {"permission_requests": grouped["perm"], "questions": grouped["question"], "messages": msgs, "blocked": grouped["blocked"],
            "notes": grouped["note"], "answered_on_page": grouped["answer"], "finished": any(k.startswith("finished:") for k in items),
@@ -651,6 +673,8 @@ def cmd_inbox(a) -> int:
            "new": sorted(new), "page_url": url}
     if (setup := obj["setup"]) and not setup["missing"]:
         (board.dir / "run" / SETUP_FILE).unlink(missing_ok=True)
+    obj.update(proposals=grouped["proposal"], choices=grouped["choose"], capacity=(grouped["capacity"] or [None])[0],
+               summary=(grouped["summary"] or [None])[0])
     _print(a, obj, (lines or ["nothing new"]) + ([f"{ui_label(board.root):<9} {url}"] if url else []))
     return 0
 
@@ -737,17 +761,36 @@ def cmd_ui(a) -> int:
 def cmd_send(a) -> int:
     board = _board(a)
     names = [m["name"] for m in board.members()]
-    if a.to not in [*names, "all"]:
-        raise ValueError(f"unknown member {a.to!r}; members: {', '.join(names) or 'none'}")
+    if a.to not in [*names, "all", "user"]:
+        raise ValueError(f"unknown member {a.to!r}; members: {', '.join(names) or 'none'} ('all' for every member, 'user' for the page)")
+    if a.to == "user":
+        if not in_lang(a.text, lang := reply_lang(board.live_cfg())):
+            raise ValueError(f"the user reads replies in {lang}: write it in {lang}")
+        board.send("leader", "user", "message", a.text, a.task)
+        print("on the page for the user")
+        return 0
     for to in names if a.to == "all" else [a.to]:
         board.send("leader", to, a.kind, a.text, a.task)
     print("\n".join([f"sent to {a.to}", *_routing_lines(route.run(board))]))
     return 0
 
 
+def cmd_lang(a) -> int:
+    board = _board(a)
+    if a.language:
+        lang = next((x for x in LANGS if x.lower() == a.language.strip().lower()), None)
+        if lang is None:
+            raise ValueError(f"the languages on offer: {', '.join(LANGS)}")
+        board.update_cfg(lambda cfg: cfg.update(reply_lang=lang))
+    now = reply_lang(board.live_cfg())
+    _print(a, {"lang": now, "langs": list(LANGS)}, [f"the user reads replies in {now}; the crew works in English"
+                                                    + ("; members follow with their next message" if a.language else "")])
+    return 0
+
+
 def cmd_assign(a) -> int:
     board = _board(a)
-    if why := route.assign(board, a.member, a.task):
+    if why := route.assign(board, a.member, a.task, getattr(a, "note", None)):
         raise ValueError(why)
     print(f"task {a.task} assigned to {a.member}; it comes as its next message")
     return 0
@@ -778,13 +821,37 @@ def cmd_allow(a) -> int:
     return 1 if problems else 0
 
 
+def cmd_assist(a) -> int:
+    board = _board(a)
+    if why := route.add_helper(board, a.task, a.member, a.paths or None):
+        raise ValueError(why)
+    print(f"{a.member} now helps with task {a.task}; both were told by mail")
+    return 0
+
+
+def cmd_summary(a) -> int:
+    board = _board(a)
+    parts = {k: getattr(a, k) for k in SUMMARY_PARTS}
+    if a.text or any(parts.values()):
+        board.add_summary(a.text or "", **parts)
+    rows = board.summaries(1 if a.text or any(parts.values()) else 5)
+    _print(a, {"summaries": rows}, [f"{time.strftime('%H:%M', time.localtime(r['ts']))}  {r['text']}" for r in rows] or ["no summary yet"])
+    return 0
+
+
 def cmd_spawn(a) -> int:
     board = _board(a)
     if providers.resolve_key(board.cfg["provider"]) is None:
         raise ValueError(f"no {board.cfg['provider']['name']} key yet: the user saves it on the team's page ({page_url(board.dir) or CMD + ' ui'}); "
                          "it stays on this computer. Wait for the inbox to report the setup done")
+    if a.proposals:
+        started = route.start_proposals(board)
+        print("\n".join(f"started {m['name']} region={m['region']} task={m['task']}" for m in started) or "no proposals")
+        if left := route.plan(board)["proposals"]:
+            print(f"{len(left)} proposal(s) not started: the team is at its limit of {board.cfg['max_active']} members")
+        return 0
     if not a.name:
-        raise ValueError(f"{CMD} spawn NAME --region PATH ... [--task T] [--role TEXT]")
+        raise ValueError(f"{CMD} spawn NAME --region PATH ... [--task T] [--role TEXT], or {CMD} spawn --proposals")
     if not MEMBER_NAME.fullmatch(a.name):
         raise ValueError(f"member names are 2-24 characters of a-z, 0-9 and '-', starting with a letter, such as \"physics-engine\": not {a.name!r}")
     m = member.start(board, a.name, a.region, a.task, a.role, a.strength)
@@ -919,6 +986,7 @@ def cmd_audit(a) -> int:
                   + (f"; {r['untracked_unchanged']} untracked files from before the team started (unchanged) left out" if r["untracked_unchanged"] else "")
                   + (f"; more than {UNTRACKED_MAX:,} untracked files, so every untracked file is listed" if r["untracked_too_many"] else "")] +
            [f"  {f['path']:40} owner={f['owner'] or '-':12} edited_by={','.join(f['edited_by']) or '-'}  {' '.join(f['flags'])}"
+            + (f"  lease={','.join(f['leased_to'])}" if f.get("leased_to") else "")
             + (f" (likely {f['shell']['member']}: {f['shell']['command'][:80]}" + "".join(f"; or {o}" for o in f["shell"].get("others", []))
                + ")" if f.get("shell") else "") for f in r["files"]])
     return 0
@@ -1049,8 +1117,8 @@ def parser(project=None) -> argparse.ArgumentParser:
     cmd("post", cmd_post, "post a task; --strength makes it wait for a member on that strength's model", one("title"), one("--body"),
         many("--scope"), many("--dep"), one("--strength", choices=list(presets.STRENGTHS)), flag("--no-route"),
         one("--to", help="give the task to this member at once: nobody else is offered it"))
-    cmd("status", cmd_status, "tasks, members, blocked tasks, pending requests")
-    cmd("inbox", cmd_inbox, "permission requests, questions, messages and blocked tasks for the leader", one("--wait", type=float))
+    cmd("status", cmd_status, "tasks, members, proposals, blocked tasks")
+    cmd("inbox", cmd_inbox, "permission requests, questions, messages and proposals for the leader", one("--wait", type=float))
     cmd("prices", cmd_prices, "the provider's list prices, what they cost now and the next changes (UTC), to choose when the crew works",
         one("--changes", type=int, default=4, help="how many coming changes to list"))
     cmd("approve", cmd_approve, "answer a permission request; --always also lets members do the same without asking (the inbox says what it adds), "
@@ -1061,16 +1129,26 @@ def parser(project=None) -> argparse.ArgumentParser:
         one("text", nargs="?"), one("--file"), flag("--clear"), flag("--default"))
     cmd("note", cmd_note, "team notes (Markdown files members read): add TOPIC --text T, list, show NAME, rm NAME",
         one("action", choices=["add", "list", "show", "rm"]), one("title", nargs="?"), one("--text"))
-    cmd("send", cmd_send, "send a message to a member or 'all'", one("to"), one("text"),
+    cmd("send", cmd_send, "send a message to a member or 'all', or to 'user': the team's page shows it to the user", one("to"), one("text"),
         one("--kind", default="notice", choices=["notice", "answer"]), one("--task"))
-    cmd("assign", cmd_assign, "give an open task to a member", one("task"), one("member"))
+    cmd("lang", cmd_lang, f"the language the user reads replies in ({', '.join(LANGS)}); the crew works in English", one("language", nargs="?"))
+    cmd("assign", cmd_assign, "give a task to a member (the leader picks among members who asked for the same task); "
+        "--note is your brief: what to weigh, the access you gave it; a task outside its region becomes its lease",
+        one("task"), one("member"), one("--note"))
     cmd("allow", cmd_allow, "the team's allowlist and the MCP tools members use without asking, with where each entry came from; COMMAND ... and --tool NAME "
                             "... put commands and tools the user approved on them, --remove takes them off",
         one("command", nargs="*"), one("--tool", action="append", metavar="NAME", help="an MCP tool, such as mcp__github__create_issue (repeatable)"),
         flag("--remove"))
+    cmd("assist", cmd_assist, "put an idle member on a task another member holds; PATH ... (inside the task's scope) become its lease and the holder "
+        "stops writing them until the task closes; without PATH it reads, checks and advises", one("task"), one("member"), one("paths", nargs="*"))
+    cmd("summary", cmd_summary, "record where the work stands for the user (the pages show the latest as a round report); without text, print the "
+        "last ones", one("text", nargs="?"), one("--finished", action="append", default=[], help="a result of this round, one per flag"),
+        one("--running", action="append", default=[], help="what is in progress"), one("--risks", action="append", default=[], help="a risk"),
+        one("--decide", action="append", default=[], help="a decision the user should make"))
     cmd("spawn", cmd_spawn, "start a member with its region, first task and role; --strength runs it on a stronger model than the team's",
         one("name", nargs="?"), one("--region", action="append", default=[]), one("--task"), one("--role"),
         one("--strength", choices=list(presets.STRENGTHS)))
+    sub.choices["spawn"].add_argument("--proposals", action="store_true", help="start every proposed member")
     cmd("rest", cmd_rest, "rest the crew: every member process ends and nobody starts until resume; the team, its page and its key stay")
     cmd("resume", cmd_resume, "end a rest: members with work or mail start again")
     cmd("link", cmd_link, "link a folder outside the project to the team (members reach it at once); without PATH, list the links",

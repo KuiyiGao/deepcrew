@@ -5,6 +5,7 @@ import contextlib
 import json
 import ntpath
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -16,7 +17,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__, extensions, policy, prompts, providers, toolkit
-from .board import Board, _strings, lock_file, state_home, tools_dir, unlock_file, write_json
+from .board import LANGS, REPORTS, Board, _strings, in_lang, lock_file, reply_lang, state_home, tools_dir, unlock_file, write_json
 from .memory import (
     INSTRUCTIONS as INSTRUCTIONS,
     INSTRUCTIONS_MAX_CHARS as INSTRUCTIONS_MAX_CHARS,
@@ -54,6 +55,7 @@ EXIT_SETTLE_S = 10.0
 STOP_WAIT_S = 10.0
 ENDING_POLL_S = 0.2
 ALIVE_LOCK_WAIT_S, ALIVE_LOCK_POLL_S = 10.0, 0.05
+REPLY_POLL_S = 0.25
 HOOK_TIMEOUT_S = 30
 DRIVER_EXIT_S = 60
 PROGRESS_S = 15
@@ -96,13 +98,20 @@ PASS_ENV = pass_env_names()
 FIXED_ENV.update(host_env())
 
 
-def task_view(board: Board, t: dict) -> dict:
-    return {**{k: t[k] for k in ("id", "title", "body", "scope", "deps")}, "prerequisites": board.prerequisites(t)}
+def task_view(board: Board, t: dict, region: list[str] | None = None) -> dict:
+    out = {**{k: t[k] for k in ("id", "title", "body", "scope", "deps")}, "prerequisites": board.prerequisites(t)}
+    if waiting := board.depth()[t["id"]][1]:
+        out["unblocks"] = waiting
+    if region is not None and t["scope"] and not policy.within(t["scope"], region):
+        out["ask"] = True
+    return out
 
 
 def offer_text(board: Board, name: str, tasks: list[dict]) -> str:
-    return prompts.render("deliver_offer", board.cfg, name=name,
-                          tasks=json.dumps([task_view(board, t) for t in tasks], ensure_ascii=False, indent=1))
+    region = (board.member(name) or {}).get("region", [])
+    with board.still():
+        views = [task_view(board, t, region) for t in tasks]
+    return prompts.render("deliver_offer", board.cfg, name=name, tasks=json.dumps(views, ensure_ascii=False, indent=1))
 
 
 def mail_text(board: Board, msgs: list[dict]) -> str:
@@ -110,10 +119,32 @@ def mail_text(board: Board, msgs: list[dict]) -> str:
     return prompts.render("deliver_mail", board.cfg, messages=lines)
 
 
+def lang_line(board: Board) -> str | None:
+    lang = reply_lang(board.live_cfg())
+    return None if lang == LANGS[0] else (f"The user reads {lang}: write every gist, and every message to the user, in {lang}. "
+                                          "Everything else stays in English.")
+
+
+def with_lang(board: Board, text: str) -> str:
+    line = lang_line(board)
+    return f"{text}\n\n{line}" if line else text
+
+
+def gist_problem(board: Board, gist: str) -> str | None:
+    if "`" in gist or PATHISH.search(gist):
+        return "the gist is for the user watching the team: say what changed for them or what you need, in plain words, without paths or code"
+    lang = reply_lang(board.live_cfg())
+    if not in_lang(gist, lang):
+        return f"write the gist in {lang}: the user reads replies in {lang} (everything else stays in English)"
+    return None
+
+
 def offer(board: Board, m: dict) -> list[dict]:
     t = board.task(m.get("assigned"))
     if t and t["state"] == "claimed" and t["owner"] == m["name"]:
         return [t]
+    if board.helping(m):
+        return []
     return board.eligible(m)[: board.cfg["offer_size"]]
 
 
@@ -331,7 +362,7 @@ def start(board: Board, name: str, region, task_id: str | None = None, role: str
                 task, why = board._claim(name, task_id)
                 if task is None:
                     raise LaunchError(f"cannot give {task_id} to {name}: {why}")
-            proc = _launch(board, m, prompts.render("member_start", board.cfg, **_opening(board, m, task)), resume=False)
+            proc = _launch(board, m, with_lang(board, prompts.render("member_start", board.cfg, **_opening(board, m, task))), resume=False)
         except Exception:
             if task_id and (t := board.task(task_id)) and t["owner"] == name:
                 board._release(name, task_id, by_choice=False)
@@ -375,10 +406,10 @@ def wake(board: Board, name: str) -> dict | None:
         tasks = offer(board, m)
         mail = board.peek_mail(name)
         senders = {msg.get("from") for _, msg in mail}
-        if not tasks and "leader" not in senders:
+        if not tasks and "leader" not in senders and not board.partner_wake(name, senders, spend=True):
             return None
         msgs = [msg for _, msg in mail]
-        body = "\n\n".join([*([mail_text(board, msgs)] if msgs else []), *([offer_text(board, name, tasks)] if tasks else [])])
+        body = with_lang(board, "\n\n".join([*([mail_text(board, msgs)] if msgs else []), *([offer_text(board, name, tasks)] if tasks else [])]))
         resumable = transcript(board, m) is not None
         if not resumable:
             m["session"] = str(uuid.uuid4())
@@ -453,8 +484,28 @@ def alive(m: dict | None) -> bool:
         return False
     if providers.is_windows():
         return lock_held(m.get("lock"))
+    batch = getattr(_LOOK, "pids", None)
+    if batch and str(m["pid"]) in batch:
+        if _LOOK.seen is None:
+            r = subprocess.run(["ps", "-o", "pid=,command=", "-p", ",".join(sorted(batch))], capture_output=True, text=True,
+                               **providers.SUBPROCESS_TEXT, check=False)
+            _LOOK.seen = dict(line.strip().partition(" ")[::2] for line in r.stdout.splitlines() if line.strip()) \
+                if r.returncode == 0 or r.stdout.strip() else False
+        if _LOOK.seen is not False:
+            return m["session"] in _LOOK.seen.get(str(m["pid"]), "")
     r = subprocess.run(["ps", "-o", "command=", "-p", str(m["pid"])], capture_output=True, text=True, **providers.SUBPROCESS_TEXT, check=False)
     return m["session"] in r.stdout
+
+
+_LOOK = threading.local()
+
+
+def living(ms: list[dict]) -> set[str]:
+    _LOOK.pids, _LOOK.seen = {str(m["pid"]) for m in ms if m and m.get("pid")}, None
+    try:
+        return {m["name"] for m in ms if alive(m)}
+    finally:
+        _LOOK.pids = _LOOK.seen = None
 
 
 def end_command(m: dict, force: bool) -> list[str]:
@@ -484,8 +535,24 @@ def stop(board: Board, name: str, timeout: float = STOP_WAIT_S) -> bool:
                 if not alive(m):
                     break
                 time.sleep(ENDING_POLL_S)
-    board.reap(alive)
+    board.reap(living)
     return running
+
+
+def first_reply(board: Board, name: str, offset: int, timeout: float) -> bool:
+    log, deadline = board.dir / "logs" / f"{name}.ndjson", time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if log.exists():
+            with open(log, "rb") as f:
+                f.seek(offset)
+                for line in f:
+                    try:
+                        if json.loads(line).get("type") == "assistant":
+                            return True
+                    except ValueError:
+                        continue
+        time.sleep(REPLY_POLL_S)
+    return False
 
 
 BUDGET_WARN = 0.8
@@ -727,11 +794,22 @@ def task_rules(board: Board, me: str, tool: str, ti: dict) -> dict | None:
     t = board.task(tid)
     if t is None:
         return None
-    own = {"summary", f"pass:{me}", f"release:{me}"}
+    own = {"summary", "gist", f"pass:{me}", f"release:{me}"}
+    own.add(f"pitch:{me}")
     if set(md) - own:
         return _deny(f"the metadata keys you may set are {sorted(own)}")
     if any(not isinstance(v, str) or not v.strip() or len(v) > 20000 for v in md.values()):
         return _deny("metadata values are 1-20000 characters of text")
+    if len(md.get("gist", "")) > GIST_CHARS:
+        return _deny(f"metadata.gist is one plain sentence for the user, at most {GIST_CHARS} characters")
+    if md.get("gist") and (why := gist_problem(board, md["gist"])):
+        return _deny(why)
+    if "gist" in md and not (t["state"] == "claimed" and t["owner"] == me):
+        return _deny(f"task {tid} is not yours")
+    if f"pitch:{me}" in md and t["state"] == "open" and t["scope"] and not policy.within(t["scope"], (board.member(me) or {}).get("region", [])):
+        from . import route
+        why = route.ask(board, me, tid, md[f"pitch:{me}"])
+        return _deny(why) if why else None
     status, owner = ti.get("status"), ti.get("owner")
     mine = t["state"] == "claimed" and t["owner"] == me
     if status == "deleted":
@@ -761,6 +839,10 @@ def task_rules(board: Board, me: str, tool: str, ti: dict) -> dict | None:
             from . import route
             why = route.ask(board, me, tid)
             return _deny(why) if why else None
+        if t["state"] == "open" and t["scope"] and not policy.within(t["scope"], (board.member(me) or {}).get("region", [])):
+            from . import route
+            why = route.ask(board, me, tid, md.get(f"pitch:{me}"))
+            return _deny(why) if why else None
         got, why = board.claim(me, tid)
         if got is None:
             return _deny(why)
@@ -781,9 +863,9 @@ def hook_pre(board: Board, me: str, data: dict) -> dict | None:
     path = _path(data)
     if not path:
         return None
-    region = board.write_area(me)
     rel = policy.relpath(board.root, path)
-    if rel is not None and policy.covers(region, rel):
+    why = board.write_block(me, rel) if rel is not None else None
+    if rel is not None and why is None:
         return None
     absolute = path if os.path.isabs(path) else str(board.root / path)
     root = policy.fold(os.path.realpath(absolute)) == policy.fold(os.path.realpath(board.root))
@@ -797,7 +879,8 @@ def hook_pre(board: Board, me: str, data: dict) -> dict | None:
     if board.in_shared(absolute):
         return _deny(f"{path} is not yours to write: in the team folder you write your own notes, {board.notes_dir}/{me}-<topic>.md, and files "
                      f"under {board.artifacts_dir}/{me}/. To add to another member's note, write a note of your own or send that member a message")
-    return _deny(prompts.render("deny_outside", board.cfg, path=path, region=json.dumps(region)))
+    why = why or "it is the project folder itself: ask the leader"
+    return _deny(prompts.render("deny_outside", board.cfg, path=path, region=json.dumps(board.write_area(me)), why=why))
 
 
 def checked_pre(me: str, stdin) -> dict | None:
@@ -822,7 +905,7 @@ def hook_post(board: Board, me: str, data: dict) -> dict | None:
         if tool == "TaskCreate" or ti.get("status") in ("completed", "pending") or isinstance(md, dict) and f"pass:{me}" in md:
             _route(board)
     msgs = board.take_mail(me, only_from="leader")
-    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": mail_text(board, msgs)}} if msgs else None
+    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": with_lang(board, mail_text(board, msgs))}} if msgs else None
 
 
 def _route(board: Board) -> None:
@@ -846,7 +929,7 @@ def _wait_for_work(board: Board, me: str) -> tuple[str | None, list[str]]:
             msgs, tasks = board.take_mail(me), offer(board, m)
             if msgs or tasks:
                 parts = [*([mail_text(board, msgs)] if msgs else []), *([offer_text(board, me, tasks)] if tasks else [])]
-                return "\n\n".join(parts), [t["id"] for t in tasks]
+                return with_lang(board, "\n\n".join(parts)), [t["id"] for t in tasks]
         if time.monotonic() >= deadline:
             return None, []
         time.sleep(POLL_S)
@@ -861,7 +944,7 @@ def _end_of_turn(board: Board, me: str, offered: list[str], reminded: str | None
         board.release(me, held["id"], "the member ended its turn twice without finishing the task")
         return None, None
     undecided = [tid for tid in offered if (t := board.task(tid)) and t["state"] == "open"
-                 and me not in [*t["passed_by"], *t["released_by"]]]
+                 and me not in [*t["passed_by"], *t["released_by"], *t["volunteers"]]]
     if undecided:
         board.mark(me, undecided, "skip", "offered; neither taken nor declined")
     if offered:
@@ -1111,11 +1194,17 @@ def _restart(board: Board) -> None:
 
 STR = {"type": "string"}
 MAX_OPTIONS = 6
+GIST_CHARS = 120
+PATHISH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/?(?:[\w.@-]+/)+[\w.@-]+")
 TOOLS = [
     {"name": "message", "description": "Send a message to the leader, to a member by name, or to 'all'. Progress reports, questions and "
      "disputes go to the leader. With wait=true (to the leader only) you wait for the leader's answer; the leader may ask the user. options: the answers you "
-     "expect, shown to the user as buttons.",
-     "inputSchema": {"type": "object", "properties": {"to": STR, "text": STR, "wait": {"type": "boolean"},
+     "expect, shown to the user as buttons. to='user' answers the user, who wrote to you from the team's page (the leader gets a copy). gist: what the "
+     f"message says in one plain sentence for the user watching the team (no file paths, no code, at most {GIST_CHARS} characters); the recipient gets text "
+     "in full. kind: kickoff (you start a task: your plan), progress, done (the result and how you checked it), blocker (what stops you or needs a "
+     "decision), fyi (the default).",
+     "inputSchema": {"type": "object", "properties": {"to": STR, "text": STR, "gist": {"type": "string", "maxLength": GIST_CHARS},
+                                                      "kind": {"type": "string", "enum": list(REPORTS)}, "wait": {"type": "boolean"},
                                                       "options": {"type": "array", "items": STR, "maxItems": MAX_OPTIONS}},
                      "required": ["to", "text"]}},
     {"name": "approve", "description": "Permission prompts for this member (called by Claude Code, not by the model).",
@@ -1182,9 +1271,16 @@ def extension_tools(board: Board) -> list[dict]:
 
 def call(board: Board, me: str, name: str, a: dict):
     if name == "message":
-        to, text, wait, options = a["to"], a["text"], a.get("wait", False), a.get("options") or []
+        to, text, wait, options, short, report = a["to"], a["text"], a.get("wait", False), a.get("options") or [], a.get("gist"), a.get("kind") or "fyi"
         if not isinstance(to, str) or not isinstance(text, str) or not isinstance(wait, bool):
             raise ValueError("to and text are strings; wait is true or false")
+        if short is not None and (not isinstance(short, str) or len(short) > GIST_CHARS):
+            raise ValueError(f"gist is one sentence of at most {GIST_CHARS} characters")
+        short = " ".join(short.split()) if short else None
+        if short and (why := gist_problem(board, short)):
+            raise ValueError(why)
+        if report not in REPORTS:
+            raise ValueError(f"kind is one of {', '.join(REPORTS)}")
         if not isinstance(options, list) or len(options) > MAX_OPTIONS or not all(isinstance(o, str) and 0 < len(o.strip()) <= 200 for o in options):
             raise ValueError(f"options is a list of at most {MAX_OPTIONS} short answers")
         task = (board.member(me) or {}).get("task")
@@ -1193,15 +1289,22 @@ def call(board: Board, me: str, name: str, a: dict):
                 raise ValueError("only the leader answers questions: send it to 'leader'")
             if not text.strip() or len(text) > 20000:
                 raise ValueError("text must be 1-20000 characters")
-            r = board.request("questions", me, {"question": text, "task": task, "answer": None, "options": [o.strip() for o in options]})
+            r = board.request("questions", me, {"question": text, "task": task, "answer": None, "options": [o.strip() for o in options],
+                                                **({"gist": short} if short else {})})
             timeout = board.live_cfg()["question_timeout_s"]
             r = board.wait("questions", r["id"], timeout)
             return {"answer": r["answer"]} if r["state"] == "answered" else {"answer": None, "note": f"no answer from the leader within {timeout} s"}
         names = {m["name"] for m in board.members()}
-        if to not in names | {"leader", "all"} or to == me:
-            raise ValueError(f"unknown recipient {to!r}; use 'leader', 'all' or one of {sorted(names - {me})}")
+        if to not in names | {"leader", "all", "user"} or to == me:
+            raise ValueError(f"unknown recipient {to!r}; use 'leader', 'user', 'all' or one of {sorted(names - {me})}")
+        if to == "user":
+            if not in_lang(text, lang := reply_lang(board.live_cfg())):
+                raise ValueError(f"write to the user in {lang}: the user reads replies in {lang}")
+            board.send(me, "user", "message", text, task, gist=short, report=report)
+            board.send(me, "leader", "notice", f"(copy) {me} wrote to the user: {text}", task, gist=short, report=report)
+            return {"sent": 1}
         targets = sorted(names - {me}) if to == "all" else [to]
-        return {"sent": len([board.send(me, x, "message", text, task) for x in targets])}
+        return {"sent": len([board.send(me, x, "message", text, task, gist=short, report=report) for x in targets])}
     if name == "approve":
         return policy.approve(board, me, a["tool_name"], a.get("input") or {}, a.get("tool_use_id"))
     if name == "screenshot":
@@ -1215,7 +1318,7 @@ def _save_place(board: Board, me: str, target: Path) -> tuple[str, list[str]]:
     absolute = target if target.is_absolute() else board.root / target
     rel = policy.relpath(board.root, str(absolute))
     mine = board.artifacts_dir / me
-    if absolute.suffix.lower() == ".png" and rel is not None and policy.covers(board.write_area(me), rel):
+    if absolute.suffix.lower() == ".png" and rel is not None and board.write_block(me, rel) is None:
         return os.path.realpath(board.root), rel.split("/")
     if absolute.suffix.lower() == ".png" and board.own_file(me, str(absolute)) and not board.is_note(str(absolute)):
         mine.mkdir(parents=True, exist_ok=True)

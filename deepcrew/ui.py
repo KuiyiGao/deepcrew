@@ -19,14 +19,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import extensions, policy, presets, providers
+from . import __version__, extensions, policy, presets, providers
 from .board import REQUEST_ID, Board, file_lock, read_json, team_path, tools_dir
 
 MAX_BODY = 64 * 1024
-CSP = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+CSP = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:"
 DEFAULT_PROVIDER = "deepseek"
 NUMBERS = ("DEEPCREW_MAX_ACTIVE", "DEEPCREW_HOLD_S", "DEEPCREW_MAX_TURNS", "DEEPCREW_APPROVAL_TIMEOUT_S", "DEEPCREW_QUESTION_TIMEOUT_S", "DEEPCREW_OFFER_SIZE",
-           "DEEPCREW_NOTE_MAX_CHARS")
+           "DEEPCREW_NOTE_MAX_CHARS", "DEEPCREW_PROPOSE_AFTER_S")
 ON_OFF = ("DEEPCREW_THINKING", "DEEPCREW_PROJECT_MEMORY", "DEEPCREW_REVIEW")
 KEYS = ("DEEPCREW_PROVIDER", "DEEPCREW_MODEL", "DEEPCREW_EFFORT", *ON_OFF, *NUMBERS, "DEEPCREW_SANDBOX", "DEEPCREW_SANDBOX_DOMAINS", "DEEPCREW_ALLOW",
         "DEEPCREW_ALLOW_OFF",
@@ -434,9 +434,19 @@ def load_extensions(project: Path, team: str | None) -> list[Extension]:
     return found
 
 
+def builtin_pages(project: Path, team: str | None) -> list[Extension]:
+    from . import live
+    return [live.page(project, team)]
+
+
+def with_builtin(own: list[Extension], exts: list[Extension]) -> list[Extension]:
+    names = {e.name for e in exts}
+    return [e for e in own if e.name not in names] + exts
+
+
 def tab_names(project=None) -> list[str]:
     return sorted(extensions.label(spec) for spec, obj in extensions.loaded(project)
-                  if callable(page := getattr(obj, "page", None)) and getattr(page, "tab", True))
+                  if callable(page := getattr(obj, "page", None)) and getattr(page, "tab", True) and not getattr(page, "replaces", None))
 
 
 def _mount(exts: list[Extension]) -> tuple[list[Extension], dict, dict]:
@@ -599,7 +609,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 def _open(port: int, project: Path, team: str | None, extensions: list[Extension] | None, link: TeamLink | None = None,
           token: str | None = None) -> tuple:
-    exts = load_extensions(project, team) if extensions is None else list(extensions)
+    exts = with_builtin(builtin_pages(project, team), load_extensions(project, team)) if extensions is None else list(extensions)
     exts, routes, streams = _mount(exts)
     title = "<title>" + html.escape(providers.NAME + (f" {team}" if team else "")) + "</title>"
     page = Path(__file__).with_name("ui.html").read_bytes().replace(b"<title>deepcrew</title>", title.encode(), 1)
@@ -687,8 +697,12 @@ def stop_page(team_dir: Path) -> bool:
 
 def start_background(project: Path, team: str, team_dir: Path, timeout_s: float = BACKGROUND_TIMEOUT_S) -> str:
     info = running(team_dir)
-    if info:
+    if info and info.get("version") == __version__:
         return info["url"]
+    if info and stop_page(team_dir):
+        deadline = time.monotonic() + START_WAIT_S
+        while running(team_dir) and time.monotonic() < deadline:
+            time.sleep(START_POLL_S)
     from . import member
     run = Path(team_dir) / "run"
     run.mkdir(parents=True, exist_ok=True)
@@ -720,7 +734,7 @@ def serve_team(project: Path, team: str, timeout_s: float) -> None:
             httpd, thread, exts, url = _open(port, project, team, None, link, token)
         except OSError:
             httpd, thread, exts, url = _open(0, project, team, None, link, token)
-        info = {"url": url, "port": httpd.port, "pid": os.getpid(), "started": time.time()}
+        info = {"url": url, "port": httpd.port, "pid": os.getpid(), "started": time.time(), "version": __version__}
         path = team_dir / "run" / UI_FILE
         try:
             for name, body in ((ADDR_FILE, {"port": httpd.port, "token": httpd.token}), (UI_FILE, info)):

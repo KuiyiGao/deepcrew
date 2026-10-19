@@ -114,23 +114,26 @@ def test_team_end_to_end(world):
 
     threading.Thread(target=leader, daemon=True).start()
     try:
-        route.run(board)
+        plan = route.run(board)
+        assert [(g["name"], g["region"], g["tasks"]) for g in plan["proposals"]] == [("m-a1", ["src/a/"], [t1["id"]]),
+                                                                                    ("m-b1", ["src/b/"], [t2["id"], t5["id"], t6["id"]])]
         assert not Board(board.dir).members()
-        member.start(board, "alpha", ["src/a/"], t1["id"], "owns src/a/")
-        member.start(board, "beta", ["src/b/"], t2["id"], "owns src/b/")
+        for name, g in zip(("alpha", "beta"), plan["proposals"], strict=True):
+            member.start(board, name, g["region"], g["tasks"][0], f"owns {g['region'][0]}")
         wait_until(lambda: all(Board(board.dir).task(t["id"])["state"] == "done" for t in (t1, t2, t3, t4)), 120, "the four tasks done")
         wait_until(lambda: all(m["state"] == "idle" for m in Board(board.dir).members()), 60, "members idle")
         b = Board(board.dir)
         assert b.task(t1["id"])["owner"] == b.task(t3["id"])["owner"] == "alpha" and b.task(t2["id"])["owner"] == "beta"
-        assert b.task(t5["id"])["state"] == "open" and b.task(t5["id"])["passed_by"] == ["beta"]
-        wait_until(lambda: Board(board.dir).task(t6["id"])["ignored_by"] == ["beta"], 30, "beta's undecided offer handed to the leader")
+        assert b.task(t5["id"])["state"] == "open" and "beta" in b.task(t5["id"])["passed_by"]
+        wait_until(lambda: "beta" in Board(board.dir).task(t6["id"])["ignored_by"], 30, "beta's undecided offer handed to the leader")
+        wait_until(lambda: {t5["id"], t6["id"]} <= {x["task"] for x in route.plan(Board(board.dir))["blocked"]}, 60, "the turned-down tasks at the leader")
         blocked = {x["task"]: x["reason"] for x in route.plan(Board(board.dir))["blocked"]}
         assert "beta declined it: the stand-in declines it" in blocked[t5["id"]] and "beta left it undecided" in blocked[t6["id"]]
 
         a_bodies = json.dumps([r["body"] for r in si.member_requests("alpha")])
         assert "owns src/a" in a_bodies
         assert f"{t1['id']} done by the stand-in" in a_bodies
-        assert "outside your region" in a_bodies and not (proj / "src/b/y.py").exists()
+        assert "ask beta by message" in a_bodies and not (proj / "src/b/y.py").exists()
         assert (proj / "src/a/x.py").exists() and (proj / "src/a/w.py").exists() and (proj / "src/b/z.py").exists()
         assert not (proj / "src/b/sub.py").exists()
 
@@ -172,7 +175,7 @@ def test_team_end_to_end(world):
 
     member.stop(board, "beta")
     assert board.forget("beta")["region"] == ["src/b/"]
-    assert [m["name"] for m in Board(board.dir).members()] == ["alpha"]
+    assert [g["region"] for g in route.plan(Board(board.dir))["proposals"]] == [["src/b/"]]
 
 
 def test_the_reviewer_lets_a_routine_command_run_and_sends_another_to_the_leader_with_its_words(world):
@@ -315,6 +318,19 @@ def test_a_balance_error_a_provider_answers_with_429_is_read_by_its_own_rules(tm
         finally:
             member.stop(Board(board.dir), "worker")
 
+def test_claude_code_reads_an_import_in_user_memory_from_anywhere_which_is_why_deepcrew_wraps_them(tmp_path):
+    cfg, home, proj = tmp_path / "cfg", tmp_path / "home", tmp_path / "proj"
+    for folder in (cfg, home, proj):
+        folder.mkdir()
+    (home / "outside.md").write_text("OUTSIDE-TEXT\n")
+    (cfg / "CLAUDE.md").write_text("Read @~/outside.md\n")
+    with StandIn() as si:
+        env = {"PATH": os.environ["PATH"], "HOME": str(home), "CLAUDE_CONFIG_DIR": str(cfg), "ANTHROPIC_BASE_URL": si.base_url, "ANTHROPIC_API_KEY": KEY,
+               "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+        subprocess.run([CLAUDE, "-p", "--setting-sources", "user", "hello"], cwd=proj, env=env, capture_output=True, check=False, stdin=subprocess.DEVNULL,
+                       timeout=120)
+        assert "OUTSIDE-TEXT" in json.dumps([r["body"] for r in si.requests])
+
 
 def test_the_projects_imports_reach_the_model_and_nothing_outside_the_project_does(tmp_path, monkeypatch):
     home = tmp_path / "home"
@@ -404,3 +420,18 @@ def claude_reads(tmp_path, docs: list[str], name: str) -> set[tuple[int, int]]:
                        timeout=180)
         sent = json.dumps([r["body"] for r in si.requests])
     return {(i, k) for i, k in canaries if f"CANARY-{i}-{k}" in sent}
+
+
+def test_the_ported_markdown_lexer_finds_the_imports_claude_code_reads_and_wrapping_them_leaves_none(tmp_path):
+    from deepcrew import memory
+    docs = [fill(template, i) for i, template in enumerate(MARKDOWN_CASES)]
+    ours = set()
+    for doc in docs:
+        for m in memory.mentions(doc)[0]:
+            target = memory.import_path(m.token, tmp_path) if m.read else None
+            if target is not None and target.parent == Path.home() and (found := re.fullmatch(r"c-(\d+)-(\d+)\.md", target.name)):
+                ours.add((int(found.group(1)), int(found.group(2))))
+    reads = claude_reads(tmp_path, docs, "raw")
+    differ = sorted(reads ^ ours)
+    assert not differ, [(MARKDOWN_CASES[i], "claude reads it" if (i, k) in reads else "our port reads it") for i, k in differ]
+    assert not claude_reads(tmp_path, [memory.sealed(doc)[0] for doc in docs], "sealed")

@@ -15,7 +15,7 @@
 
 **English** | [中文](README.zh.md)
 
-[Why](#why-i-built-deepcrew) | [Demo](#demo) | [Big jobs](#built-for-big-jobs) | [Quick start](#quick-start) | [Team page](#the-team-page) | [Mod](#claude-code-mod) | [How it works](#how-the-swarm-works) | [Cost](#what-it-costs) | [Settings](#settings) | [Prompts](#a-call-for-prompts)
+[Why](#why-i-built-deepcrew) | [Team page](#the-team-page) | [Demo](#demo) | [Big jobs](#built-for-big-jobs) | [Quick start](#quick-start) | [Mod](#claude-code-mod) | [How it works](#how-the-swarm-works) | [Cost](#what-it-costs) | [Settings](#settings) | [Prompts](#a-call-for-prompts)
 
 </div>
 
@@ -43,6 +43,26 @@ If any of these sounds familiar, DeepCrew is for you. It has now integrated with
 - **Answers and grant any permission from inside Claude Code.** On Claude Code 2.1.287 or newer, the DeepCrew mod shows what an agent asks right
   above your prompt, and you answer it with one press.
 - **Light on memory.** Each agent uses about 300 MB, so a 16 GB machine runs about 20 at once.
+
+## The team page
+
+The team page opens beside the chat, and you steer the crew from it, you could do command free.
+
+[Team Call](#team-call) | [Monitor](#monitor) | [Setup](#setup) | [Approvals](#approvals) | [Questions](#questions) | [The crew](#the-crew) | [Budget](#budget) | [Recommended setups](#recommended-setups)
+
+<table>
+<tr>
+<td width="50%" valign="top"><a name="team-call"></a><b>Team Call</b><br>Whoever speaks takes the stage with the screen it shares: its task, the files it holds, or the picture it took last. An agent that asks raises its hand, and you answer it in the column beside the call.<br><br><img src="assets/team-call.png" width="100%"></td>
+<td width="50%" valign="top"><a name="monitor"></a><b>Monitor</b><br>You, the leader, the blackboard and every agent as a network, the tasks as a table with what each one waits on, and the activity, the decisions and the cost below.<br><br><img src="assets/team-monitor.png" width="100%"></td>
+</tr>
+<tr>
+<td width="50%" rowspan="4" valign="top"><a name="setup"></a><b>Setup</b><br>Paste the key once, pick a preset and press <b>Done</b>. The key stays on this computer and goes only to your provider, DeepSeek by default.<br><br><img src="assets/team-setup.png" width="100%"></td>
+<td width="50%" valign="top"><a name="approvals"></a><b>Approvals</b><br>A low-cost reviewer approves routine commands for you. The rest wait here for Allow or Deny, and a command you allow does not ask again.<br><br><img src="assets/team-approvals.png" width="100%"></td>
+</tr>
+<tr><td valign="top"><a name="questions"></a><b>Questions</b><br>When an agent asks the leader something, you can answer it here too.<br><br><img src="assets/team-question.png" width="100%"></td></tr>
+<tr><td valign="top"><a name="the-crew"></a><b>The crew</b><br>Who works on what, and who is idle. Stop the crew from here at any time.<br><br><img src="assets/team-crew.png" width="100%"></td></tr>
+<tr><td valign="top"><a name="budget"></a><b>Budget</b><br>At 80% the leader tells you, and at 100% the crew pauses.<br><br><img src="assets/team-budget.png" width="100%"></td></tr>
+</table>
 
 ## Demo
 
@@ -115,21 +135,16 @@ Before the first run, type `/init` in Claude Code so your project has a `CLAUDE.
 shell cannot find `deepcrew` after the install, run `uv tool update-shell` and open a new terminal. More leader options,
 see [Terminal, Codex and manual setup](#terminal-codex-and-manual-setup).
 
-## The team page
+### Updating
 
-The team page opens beside the chat, and you steer the crew from it, you could do command free.
+In the `deepcrew` folder, get the new version, reinstall the command and update the plugin, then start a new Claude Code session.
 
-[Setup](#setup) | [Approvals](#approvals) | [Questions](#questions) | [The crew](#the-crew) | [Budget](#budget) | [Recommended setups](#recommended-setups)
-
-<table>
-<tr>
-<td width="50%" rowspan="4" valign="top"><a name="setup"></a><b>Setup</b><br>Paste the key once, pick a preset and press <b>Done</b>. The key stays on this computer and goes only to your provider, DeepSeek by default.<br><br><img src="assets/team-setup.png" width="100%"></td>
-<td width="50%" valign="top"><a name="approvals"></a><b>Approvals</b><br>A low-cost reviewer approves routine commands for you. The rest wait here for Allow or Deny, and a command you allow does not ask again.<br><br><img src="assets/team-approvals.png" width="100%"></td>
-</tr>
-<tr><td valign="top"><a name="questions"></a><b>Questions</b><br>When an agent asks the leader something, you can answer it here too.<br><br><img src="assets/team-question.png" width="100%"></td></tr>
-<tr><td valign="top"><a name="the-crew"></a><b>The crew</b><br>Who works on what, and who is idle. Stop the crew from here at any time.<br><br><img src="assets/team-crew.png" width="100%"></td></tr>
-<tr><td valign="top"><a name="budget"></a><b>Budget</b><br>At 80% the leader tells you, and at 100% the crew pauses.<br><br><img src="assets/team-budget.png" width="100%"></td></tr>
-</table>
+```bash
+git pull
+uv tool install --reinstall .
+claude plugin marketplace update deepcrew
+claude plugin update deepcrew@deepcrew
+```
 
 ### Recommended setups
 
@@ -294,8 +309,8 @@ Want to change the prompts deepcrew itself sends? Copy the shipped pack, `deepcr
 
 Internal testing is under operation, and on their way here.
 
-- **Live monitor.** Every task, mail and approval as it happens, and a replay of any run. The demos above were recorded
-  with it.
+- **Replay.** Any run played back at 10, 30 or 100 times its speed, in the Team Call or the Monitor. The demos above were
+  recorded with it.
 - **Better prompts.** Leader and agent prompts tuned run after run on real projects.
 - **Economy mode.** More ways to spend less on every run.
 

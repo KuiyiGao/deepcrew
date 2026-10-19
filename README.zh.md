@@ -15,7 +15,7 @@
 
 [English](README.md) | **中文**
 
-[Why](#why-i-built-deepcrew) | [Demo](#demo) | [Big jobs](#built-for-big-jobs) | [Quick start](#quick-start) | [Team page](#the-team-page) | [Mod](#claude-code-mod) | [How it works](#how-the-swarm-works) | [Cost](#what-it-costs) | [Settings](#settings) | [Prompts](#a-call-for-prompts)
+[Why](#why-i-built-deepcrew) | [Team page](#the-team-page) | [Demo](#demo) | [Big jobs](#built-for-big-jobs) | [Quick start](#quick-start) | [Mod](#claude-code-mod) | [How it works](#how-the-swarm-works) | [Cost](#what-it-costs) | [Settings](#settings) | [Prompts](#a-call-for-prompts)
 
 </div>
 
@@ -33,9 +33,27 @@ ultracode 好用，但是真贵，跑几个大活一周的额度就见底了。�
 - key、preset、审批、agent 的提问和预算都在聊天旁边的团队页面上处理。Claude Code 2.1.287 及以上装了 mod 以后，agent 的请求会直接出现在输入框上方，按一下就能批。
 - 每个 agent 大约占 300 MB 内存，16 GB 的机器能同时跑 20 个左右。
 
+## The team page
+
+团队页面开在聊天旁边，平时管这支 swarm 不用敲命令，在页面上点就行。
+
+<table>
+<tr>
+<td width="50%" valign="top"><b>Team Call</b><br>谁在说话，谁就站到台前，旁边是它共享的屏幕：它的任务、它占着的文件，或者它最后截的图。agent 有事要问时会举手，你在通话旁边那一栏里回答。<br><br><img src="assets/team-call.png" width="100%"></td>
+<td width="50%" valign="top"><b>Monitor</b><br>你、leader、黑板和每个 agent 连成一张网，任务排成一张表，写着各自在等什么，下面是动态、决定和花费。<br><br><img src="assets/team-monitor.png" width="100%"></td>
+</tr>
+<tr>
+<td width="50%" rowspan="4" valign="top"><b>Setup</b><br>key 只贴一次，选一个 preset 再点 <b>Done</b>。key 只存在这台电脑上，只发给你用的服务商，默认是 DeepSeek。<br><br><img src="assets/team-setup.png" width="100%"></td>
+<td width="50%" valign="top"><b>Approvals</b><br>常规命令先交给一个便宜的模型审，没问题就直接放行，剩下的在这里等你点 Allow 或 Deny，允许过的命令以后不再问。<br><br><img src="assets/team-approvals.png" width="100%"></td>
+</tr>
+<tr><td valign="top"><b>Questions</b><br>agent 问 leader 的问题，你在这里也能直接回答。<br><br><img src="assets/team-question.png" width="100%"></td></tr>
+<tr><td valign="top"><b>The crew</b><br>谁在做什么、谁闲着都能看到，想让整个 swarm 停下，随时在这里点。<br><br><img src="assets/team-crew.png" width="100%"></td></tr>
+<tr><td valign="top"><b>Budget</b><br>用到 80% 时 leader 会提醒你，用完了 swarm 就自动暂停。<br><br><img src="assets/team-budget.png" width="100%"></td></tr>
+</table>
+
 ## Demo
 
-下面这个 demo 只用了一句 prompt，左边是 swarm 干活的过程，用我还没放出来的 live monitor 录的回放，右边是做出来的东西。
+下面这个 demo 只用了一句 prompt，左边是 swarm 干活的过程，用我还没放出来的回放功能录的，右边是做出来的东西。
 
 > Generate a water pouring simulation with two containers, both 3D and 2D, with controls for the physics.
 
@@ -90,19 +108,16 @@ deepcrew check
 
 第一次跑之前，建议先在 Claude Code 里输入 `/init`，让项目有一个所有 agent 都会读的 `CLAUDE.md`。装完以后如果终端里找不到 `deepcrew`，运行 `uv tool update-shell` 再开一个新终端就好。终端里的 Claude Code 和 Codex 怎么用，见 [Terminal, Codex and manual setup](#terminal-codex-and-manual-setup)。
 
-## The team page
+### Updating
 
-团队页面开在聊天旁边，平时管这支 swarm 不用敲命令，在页面上点就行。
+在 `deepcrew` 文件夹里拉下新版本，重装命令，更新 plugin，再开一个新的 Claude Code 会话。
 
-<table>
-<tr>
-<td width="50%" rowspan="4" valign="top"><b>Setup</b><br>key 只贴一次，选一个 preset 再点 <b>Done</b>。key 只存在这台电脑上，只发给你用的服务商，默认是 DeepSeek。<br><br><img src="assets/team-setup.png" width="100%"></td>
-<td width="50%" valign="top"><b>Approvals</b><br>常规命令先交给一个便宜的模型审，没问题就直接放行，剩下的在这里等你点 Allow 或 Deny，允许过的命令以后不再问。<br><br><img src="assets/team-approvals.png" width="100%"></td>
-</tr>
-<tr><td valign="top"><b>Questions</b><br>agent 问 leader 的问题，你在这里也能直接回答。<br><br><img src="assets/team-question.png" width="100%"></td></tr>
-<tr><td valign="top"><b>The crew</b><br>谁在做什么、谁闲着都能看到，想让整个 swarm 停下，随时在这里点。<br><br><img src="assets/team-crew.png" width="100%"></td></tr>
-<tr><td valign="top"><b>Budget</b><br>用到 80% 时 leader 会提醒你，用完了 swarm 就自动暂停。<br><br><img src="assets/team-budget.png" width="100%"></td></tr>
-</table>
+```bash
+git pull
+uv tool install --reinstall .
+claude plugin marketplace update deepcrew
+claude plugin update deepcrew@deepcrew
+```
 
 ## Claude Code mod
 
@@ -222,7 +237,7 @@ swarm 怎么拆活全写在 prompt 里，而好的 prompt 来自真拿它干活�
 
 ## Coming next
 
-live monitor 和回放、在真实项目上一轮轮调出来的 leader 和 agent prompt，还有更省钱的 economy mode，都还在我自己的版本里测着，稳定了就搬过来。
+回放、在真实项目上一轮轮调出来的 leader 和 agent prompt，还有更省钱的 economy mode，都还在我自己的版本里测着，稳定了就搬过来。
 
 <div align="center">
 

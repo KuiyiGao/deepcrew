@@ -1,0 +1,1919 @@
+<style>
+.lv-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; padding: 0 20px; min-height: 58px;
+  background: var(--bg); border-bottom: 1px solid var(--line); }
+.lv-brand { display: inline-flex; align-items: baseline; gap: 14px; }
+.lv-brand b { font: var(--t-lead-serif); letter-spacing: -.01em; color: var(--fg); }
+.lv-brand span { padding-left: 14px; border-left: 1px solid var(--line); font: var(--t-field); color: var(--muted); }
+.lv-tablist { display: flex; gap: 4px; align-self: stretch; }
+.lv-tablist button { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 0 12px; margin: 0;
+  color: var(--muted); font: var(--t-field); cursor: pointer; }
+.lv-tablist button svg { width: 16px; height: 16px; flex: none; display: none; }
+.lv-tablist button.end { order: 9; }
+.lv-tablist button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--accent); font-weight: var(--fw-label); }
+.lv-chips { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font: var(--t-body); color: var(--muted); }
+@media (max-width: 1220px) { .lv-chip-s > .lv-bar { display: none; } }
+.lv-chips:empty { display: none; }
+.lv-chip-s { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; border: 0; background: none; padding: 0; color: inherit; font: inherit; }
+.lv-chip-s > i { width: 9px; height: 9px; border-radius: 50%; background: var(--dc, var(--muted)); flex: none; }
+.lv-chip-s > i.beat { animation: lv-beat 2.4s ease-out infinite; }
+.lv-chip-s b { color: var(--fg); font-weight: var(--fw-label); font-variant-numeric: tabular-nums; }
+.lv-chip-s .lv-bar { width: 54px; height: 6px; }
+.lv-chip-s .lv-tank { margin-right: -2px; }
+button.lv-chip-s { cursor: pointer; } button.lv-chip-s:hover { color: var(--fg); }
+.lv-chip-s svg { width: 15px; height: 15px; flex: none; }
+.lv-chip-s .of { color: var(--muted); }
+.lv-chip-s.need { padding: 2px 10px 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--fg); }
+.lv-chip-s.need svg { width: 17px; height: 17px; color: var(--warn); transform-origin: 50% 90%; animation: lv-wave-hand 1.2s ease-in-out infinite; }
+.lv-dots { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 150px; }
+.lv-dots i { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 28%, transparent); transition: background .4s, box-shadow .4s; }
+.lv-dots i.on { background: var(--mc); box-shadow: 0 0 6px color-mix(in srgb, var(--mc) 70%, transparent); }
+.lv-dots i.ask { background: var(--warn); animation: lv-attn 1.2s ease-in-out infinite; }
+.lv-dots i.bad { background: var(--bad); }
+.lv-top .lv-gear { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.lv-top .lv-gear:hover { color: var(--fg); background: var(--card); }
+.lv-top .lv-gear svg { width: 18px; height: 18px; }
+.lv-top .theme-box { margin: 0; }
+@media (max-width: 760px) { .lv-top { padding: 8px 12px; } .lv-brand span { display: none; } .lv-chips { margin-left: 0; width: 100%; order: 3; } .lv-tablist button span { display: none; } .lv-tablist button svg { display: block; } }
+.lv-top [hidden] { display: none !important; }
+body.lv-on { min-height: 100vh; }
+body.lv-on .waiting { display: none; }
+
+.lv-top, #live {
+  --panel: var(--card); --panel-2: var(--bg); --text: var(--fg); --line-strong: color-mix(in srgb, var(--line) 55%, var(--fg));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--card));
+  --st-open: var(--muted); --st-work: #5b7fa6; --st-done: var(--good);
+  --g-flow: var(--accent); --g-mail: #7f6fa6; --g-edit: #4f8a86; --g-perm: var(--warn);
+  --c-you: var(--a-sea); --c-lead: var(--accent); --water: #5f8fb0; --water-2: #9cc3d8;
+  --m0: #b5655f; --m1: #6f8f65; --m2: #b8894f; --m3: #637f9f; --m4: #8c6fa3; --m5: #4f8a86; --m6: #a0704f; --m7: #7f8a45; --m8: #b0706a; --m9: #6e6c99;
+  --diver: #efe9de; --tile-idle: color-mix(in srgb, var(--muted) 22%, var(--card));
+  --scr-bg: #1f1e1d; --scr-bar: #2c2b28; --scr-fg: #e9e5dc; --scr-dim: #b1ab9f; --scr-hi: #faf8f3; --scr-mute: #8d877b; --scr-code: #e3b26b; --scr-pick: #d97757;
+  --scr-line: rgba(255, 255, 255, .1); --scr-hot: rgba(217, 119, 87, .18); --dot-r: #d9705a; --dot-y: #e0aa55; --dot-g: #8db58d;
+  --on-warn: #1f1e1d; --on-dark: #ffffff; --sheen: rgba(255, 255, 255, .45); --fly-shadow: rgba(31, 30, 29, .3);
+  --bub: rgba(95, 143, 176, .5); --wire: color-mix(in srgb, var(--muted) 55%, transparent);
+  --glass: color-mix(in srgb, var(--card) 88%, transparent); --glass-line: var(--line); --tile-shadow: rgba(60, 50, 40, .08); --you-bub: color-mix(in srgb, var(--accent) 10%, var(--card));
+  --shadow: 0 1px 2px rgba(60, 50, 40, .05), 0 6px 18px rgba(60, 50, 40, .06); --drop: drop-shadow(0 1px 2px rgba(60, 50, 40, .12));
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+:root[data-theme=dark] .lv-top, :root[data-theme=dark] #live {
+  --st-work: #8fb0d4; --g-mail: #b1a3d6; --g-edit: #7fbfba; --water: #79abcc; --water-2: #b4d6ea;
+  --m0: #d8918a; --m1: #9bbb8f; --m2: #ddb27a; --m3: #95adc9; --m4: #b89acb; --m5: #7fb8b3; --m6: #c99b7a; --m7: #abb66f; --m8: #d79a92; --m9: #9c9ac6;
+  --diver: #e9e3d7; --fly-shadow: rgba(0, 0, 0, .45); --bub: rgba(156, 195, 216, .45); --tile-shadow: rgba(0, 0, 0, .3);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .3); --drop: drop-shadow(0 1px 2px rgba(0, 0, 0, .5));
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme=auto] .lv-top, :root[data-theme=auto] #live {
+    --st-work: #8fb0d4; --g-mail: #b1a3d6; --g-edit: #7fbfba; --water: #79abcc; --water-2: #b4d6ea;
+    --m0: #d8918a; --m1: #9bbb8f; --m2: #ddb27a; --m3: #95adc9; --m4: #b89acb; --m5: #7fb8b3; --m6: #c99b7a; --m7: #abb66f; --m8: #d79a92; --m9: #9c9ac6;
+    --diver: #e9e3d7; --fly-shadow: rgba(0, 0, 0, .45); --bub: rgba(156, 195, 216, .45); --tile-shadow: rgba(0, 0, 0, .3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .3); --drop: drop-shadow(0 1px 2px rgba(0, 0, 0, .5));
+  }
+}
+#live[hidden], #live [hidden] { display: none !important; }
+#live { position: relative; font: var(--t-body); color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+#live * { box-sizing: border-box; }
+#live button, #live select, #live input, #live textarea { font: inherit; color: inherit; margin: 0; }
+#live label { display: inline; margin: 0; color: inherit; font: inherit; }
+#live select { display: inline-block; width: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+#live button:focus-visible, #live select:focus-visible, #live [tabindex]:focus-visible, #live textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#live p, #live h2, #live h3, #live h4, #live ul, #live ol { margin: 0; padding: 0; }
+#live ul, #live ol { list-style: none; }
+#live section { border-top: 0; padding: 0; }
+#live .lv-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--card); border-radius: 10px; padding: 5px 14px; cursor: pointer;
+  font: var(--t-body); font-weight: var(--fw-label); }
+#live .lv-btn svg { width: 15px; height: 15px; }
+#live .lv-btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+#live .lv-btn:disabled { opacity: .5; cursor: default; }
+#live .lv-seg { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); flex: none; }
+#live .lv-seg button { background: none; border: 0; border-radius: 8px; padding: 3px 12px; cursor: pointer; font: var(--t-body); color: var(--muted); }
+#live .lv-seg button[aria-pressed=true] { background: var(--accent-soft); color: var(--fg); font-weight: var(--fw-label); }
+
+#live .lv-body { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 20px; align-items: start; padding: 20px 22px 28px; }
+#live .lv-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+#live .lv-aside { position: sticky; top: 78px; display: flex; flex-direction: column; gap: 16px; min-width: 0; max-height: calc(100vh - 98px); }
+#live .lv-view { position: relative; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+#live .lv-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 1px 2px var(--tile-shadow); min-width: 0; }
+#live .lv-card-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; padding: 16px 20px 10px; }
+#live .lv-card-head h2 { font: var(--t-lead-serif); letter-spacing: -.01em; color: var(--fg); }
+#live .lv-card-head h3 { font: var(--t-section-serif); color: var(--fg); }
+#live .lv-meta { display: inline-flex; flex-wrap: wrap; gap: 0 12px; color: var(--muted); font: var(--t-body); font-variant-numeric: tabular-nums; }
+#live .lv-meta b { color: var(--fg); font-weight: var(--fw-label); }
+#live .lv-card-head .lv-end { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+#live .lv-card-head h2 .sl { color: var(--muted); }
+#live .lv-card.clip { overflow: hidden; }
+#live .lv-empty { display: grid; place-items: center; padding: 48px 16px; color: var(--muted); }
+#live .lv-empty svg { width: 46px; height: 46px; opacity: .45; }
+.lv-bar { position: relative; display: inline-block; width: 120px; height: 8px; border-radius: 6px; background: color-mix(in srgb, var(--line) 80%, transparent); overflow: hidden; }
+.lv-bar > i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 6px; background: linear-gradient(90deg, var(--bc, var(--st-done)), color-mix(in srgb, var(--bc, var(--st-done)) 70%, var(--on-dark)));
+  transition: width .8s var(--ease); }
+.lv-bar > i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, var(--sheen) 50%, transparent 70%); background-size: 200% 100%;
+  animation: lv-sheen 2.6s linear infinite; }
+.lv-bar.thin { height: 5px; width: 100%; }
+
+.lv-tank { flex: none; overflow: visible; }
+.lv-tank .glass { fill: color-mix(in srgb, var(--card) 70%, transparent); stroke: var(--line-strong); stroke-width: 1.4; }
+.lv-tank .level { transition: transform 1s var(--ease); }
+.lv-tank .wave { fill: var(--tc, var(--water)); opacity: .9; }
+.lv-tank .wave.back { fill: var(--tc2, var(--water-2)); opacity: .55; }
+.lv-tank .mark { stroke: var(--line-strong); stroke-width: 1; opacity: .6; }
+
+#live .lv-pop { position: absolute; z-index: 30; width: 340px; max-width: calc(100% - 24px); padding: 16px 18px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; animation: lv-pop .18s var(--ease); }
+#live .lv-pop header { display: flex; align-items: center; gap: 10px; }
+#live .lv-pop header b { font: var(--t-section-serif); color: var(--mc, var(--text)); }
+#live .lv-pop header svg { width: 18px; height: 18px; color: var(--muted); }
+#live .lv-pop header .x { margin-left: auto; border: 0; background: none; color: var(--muted); font: var(--t-section); line-height: 1; cursor: pointer; padding: 0 4px; }
+#live .lv-pop .prow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#live .lv-pop .prow > span { color: var(--muted); }
+#live .lv-pop p { font: var(--t-body); }
+#live .lv-pop .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+#live .lv-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 6px; font: var(--t-meta); font-family: var(--mono); color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 10%, var(--card)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#live .lv-chip svg { width: 12px; height: 12px; flex: none; }
+#live .lv-chip.hot { color: var(--mc, var(--accent)); background: color-mix(in srgb, var(--mc, var(--accent)) 14%, var(--card)); }
+#live .lv-pop ul { display: flex; flex-direction: column; gap: 5px; }
+#live .lv-pop li { font: var(--t-body); padding-left: 8px; border-left: 2px solid var(--kc, var(--line)); overflow-wrap: anywhere; }
+#live .lv-pop .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+#live .lv-pick { display: flex; gap: 8px; }
+#live .lv-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px 4px; border-radius: 10px; border: 2px solid var(--line); background: var(--bg); cursor: pointer; }
+#live .lv-pick button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); }
+
+#live .stand { position: relative; display: grid; place-items: end center; }
+#live .stand > .floor { position: absolute; left: 50%; bottom: calc(var(--fw, 58px) / -2 + 6px); width: var(--fw, 58px); height: var(--fw, 58px); margin-left: calc(var(--fw, 58px) / -2); border-radius: 10px;
+  transform: rotateX(62deg) rotateZ(45deg); background: var(--tile, var(--tile-idle)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 10%, transparent);
+  transition: background .5s var(--ease); }
+#live .stand.work > .floor { --tile: color-mix(in srgb, var(--mc, var(--st-work)) 34%, var(--card)); }
+#live .stand.done > .floor { --tile: color-mix(in srgb, var(--st-done) 36%, var(--card)); }
+#live .stand.ask > .floor { --tile: color-mix(in srgb, var(--warn) 36%, var(--card)); animation: lv-attn 1.6s ease-in-out infinite; }
+#live .stand > svg, #live .stand > .scene { position: relative; }
+#live .scene { position: relative; flex: none; }
+#live .scene .desk { position: absolute; left: 0; top: 0; pointer-events: none; }
+#live .fig.fl { animation: lv-float 3.2s ease-in-out infinite; }
+#live .scene.talking .fig.fl { animation: lv-talkbob .6s ease-in-out infinite; }
+#live .scene.failed .fig { filter: grayscale(1); opacity: .6; }
+#live .scene .bubs { position: absolute; width: 0; height: 0; pointer-events: none; display: none; }
+#live .scene.breathing .bubs { display: block; }
+#live .scene .bubs i { position: absolute; left: 0; top: 0; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--bub); opacity: 0; animation: lv-bubble 2.6s ease-in infinite; }
+#live .scene .bubs i:nth-child(2) { left: 5px; width: 4px; height: 4px; animation-delay: .9s; }
+#live .scene .bubs i:nth-child(3) { left: -3px; width: 3px; height: 3px; animation-delay: 1.7s; }
+
+#live .as-lead { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; align-items: center; padding: 0 20px 16px; }
+#live .as-fig { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 16px; background: color-mix(in srgb, var(--c-lead) 10%, var(--bg)); }
+#live .as-count { padding: 0 9px; border-radius: 999px; background: color-mix(in srgb, var(--bad) 13%, var(--card)); color: var(--bad); font: var(--t-body); font-weight: var(--fw-label); }
+#live .as-lead .say { font: var(--t-field); color: var(--fg); white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+#live .as-lead .say.open { display: block; }
+#live .as-fold { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font: var(--t-body); }
+#live .as-fold svg { width: 12px; height: 12px; transition: transform .2s; }
+#live .as-fold[aria-expanded=true] svg { transform: rotate(90deg); }
+#live .as-report { margin-top: 8px; display: grid; gap: 4px; }
+#live .as-report div { display: flex; gap: 8px; align-items: baseline; font: var(--t-body); }
+#live .as-report svg { width: 14px; height: 14px; flex: none; align-self: center; color: var(--rc); }
+#live .as-report .decide { padding: 4px 8px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 14%, transparent); }
+#live .as-chat { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+#live .as-to { padding: 0 2px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; font: var(--t-section-serif); color: var(--muted); max-width: 150px; }
+#live .as-to:hover { border-color: var(--line); color: var(--fg); }
+#live .as-lines { margin: 0; padding: 4px 16px 10px; overflow: auto; flex: 1 1 auto; min-height: 120px; max-height: 46vh; display: flex; flex-direction: column; gap: 10px; }
+#live .as-line { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 2px 10px; align-items: start; }
+#live .as-line .who { display: flex; flex-direction: column; font: var(--t-body); font-weight: var(--fw-label); color: var(--fg); padding-top: 7px; min-width: 0; }
+#live .as-line .who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#live .as-line .who .to { color: var(--muted); font-weight: var(--fw-body); }
+#live .as-bub.kind { border-left: 3px solid var(--kc); }
+#live .as-bub.re { border-left: 3px solid var(--c-you); }
+#live .as-line.cont { margin-top: -5px; }
+#live .as-line.cont .who { visibility: hidden; }
+#live .as-k { float: right; margin: 1px 0 2px 8px; color: var(--kc); }
+#live .as-k svg { width: 15px; height: 15px; display: block; }
+#live .as-bub { min-width: 0; padding: 8px 12px; border-radius: 10px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+#live .as-line.mine .as-bub { background: var(--you-bub); border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); }
+#live .as-line.to-me .as-bub { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+#live .as-line.new { animation: lv-in .35s var(--ease); }
+#live .as-text { font: var(--t-body); color: var(--text); white-space: pre-line; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; cursor: pointer; }
+#live .as-text.open { -webkit-line-clamp: unset; display: block; }
+#live .as-more { margin-left: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: var(--t-meta); cursor: pointer; }
+#live .as-full { font: var(--t-meta); color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; margin-top: 6px; padding: 6px 8px; border-radius: 6px; background: var(--card); }
+#live .as-send { flex: none; display: flex; gap: 8px; padding: 10px 16px 16px; }
+#live .as-send textarea { flex: 1 1 auto; min-width: 0; resize: none; height: 44px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; background: var(--card); color: var(--text); font: var(--t-body); }
+#live .as-send .lv-btn { align-self: stretch; padding: 0 18px; }
+#live .as-send .lv-btn.ok { background: var(--good); border-color: var(--good); }
+#live .as-send .lv-btn.bad { background: var(--bad); border-color: var(--bad); }
+#live .as-needs { display: flex; flex-direction: column; max-height: 40vh; overflow: auto; }
+#live .as-need .mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#live .as-need { border-top: 1px solid var(--line); }
+#live .as-need > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; width: 100%; padding: 12px 20px; border: 0; background: none; cursor: pointer; text-align: left; }
+#live .as-need > button:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+#live .as-need .hd { display: flex; flex-wrap: wrap; gap: 0 10px; font: var(--t-body); color: var(--muted); }
+#live .as-need .hd b { color: var(--fg); font-weight: var(--fw-label); }
+#live .as-need .hd .age { color: var(--bad); font-weight: var(--fw-label); font-variant-numeric: tabular-nums; }
+#live .as-need .hd .ic { display: inline-flex; color: var(--warn); }
+#live .as-need .hd .ic svg { width: 15px; height: 15px; }
+#live .as-need .what { font: var(--t-field); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#live .as-need .id { font: var(--t-meta); font-family: var(--mono); color: var(--muted); }
+#live .as-need .chev svg { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+#live .as-need.open .chev svg { transform: rotate(90deg); }
+#live .as-need .act { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 14px 82px; animation: lv-in .25s var(--ease); }
+#live .as-need code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); font: var(--t-meta); font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7em; overflow: auto; }
+#live .as-need .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#live .as-need input { flex: 1 1 140px; min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 5px 10px; background: var(--card); color: var(--text); font: var(--t-body); }
+#live .as-need.flash > button { animation: lv-flash 1.2s ease-out; }
+
+#lv-call .cl-stage { position: relative; display: grid; grid-template-columns: auto minmax(0, 1.15fr) minmax(0, .85fr); align-items: center; gap: 10px 28px; padding: 20px 26px; min-height: 248px;
+  background: radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--sc, var(--c-lead)) 14%, var(--card)), var(--card) 64%); transition: background .6s var(--ease); }
+#lv-call .cl-scene { position: relative; justify-self: center; }
+#lv-call .cl-scene .rings { position: absolute; left: 50%; top: 38%; width: 0; height: 0; pointer-events: none; }
+#lv-call .cl-scene .rings i { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--sc); opacity: 0; }
+#lv-call .cl-stage.talking .cl-scene .rings i { animation: lv-ring 2.2s ease-out infinite; }
+#lv-call .cl-stage.talking .cl-scene .rings i:nth-child(2) { animation-delay: .7s; }
+#lv-call .cl-stage.talking .cl-scene .rings i:nth-child(3) { animation-delay: 1.4s; }
+#lv-call .cl-cap { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#lv-call .cl-route { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); }
+#lv-call .cl-route > svg { width: 14px; height: 14px; }
+#lv-call .cl-pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 3px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line);
+  font: var(--t-meta); font-weight: var(--fw-label); color: var(--text); animation: lv-pop .3s var(--ease) both; }
+#lv-call .cl-pill .av { width: 20px; height: 20px; border-radius: 50%; background: color-mix(in srgb, var(--c) 22%, var(--card)); display: grid; place-items: center; overflow: hidden; }
+#lv-call .cl-kind { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: var(--kc); background: color-mix(in srgb, var(--kc) 16%, transparent); }
+#lv-call .cl-kind svg { width: 17px; height: 17px; }
+#lv-call .cl-say { font: var(--t-lead-serif); letter-spacing: -.01em; color: var(--text); white-space: pre-line; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;
+  overflow: hidden; overflow-wrap: anywhere; min-height: 1.3em; }
+#lv-call .cl-say.quiet { color: var(--muted); font: var(--t-section-serif); }
+#lv-call .cl-say .caret { display: inline-block; width: .45em; height: .95em; margin-left: 2px; vertical-align: -.1em; background: var(--sc); animation: lv-caret .8s steps(1) infinite; }
+#lv-call .cl-eq, #lv-mon .cl-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; color: var(--c, currentColor); }
+#lv-call .cl-eq i { width: 3px; height: 100%; border-radius: 1px; background: currentColor; transform-origin: bottom; animation: lv-eq .9s ease-in-out infinite; }
+#lv-call .cl-eq i:nth-child(2) { animation-delay: -.3s; } #lv-call .cl-eq i:nth-child(3) { animation-delay: -.6s; }
+#lv-call .cl-screen { position: relative; align-self: stretch; min-width: 0; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-strong);
+  background: var(--scr-bg); color: var(--scr-fg); box-shadow: 0 14px 34px var(--tile-shadow); min-height: 180px; max-height: 300px; transform: perspective(1100px) rotateY(-5deg);
+  transform-origin: right center; transition: transform .5s var(--ease); }
+#lv-call .cl-screen.in { animation: lv-share .45s var(--ease); }
+#lv-call .cl-screen .sbar { flex: none; display: flex; align-items: center; gap: 6px; padding: 7px 11px; background: var(--scr-bar); font: var(--t-meta); color: var(--scr-dim); }
+#lv-call .cl-screen .sbar i { width: 9px; height: 9px; border-radius: 50%; background: var(--dot-r); } #lv-call .cl-screen .sbar i + i { background: var(--dot-y); } #lv-call .cl-screen .sbar i + i + i { background: var(--dot-g); }
+#lv-call .cl-screen .sbar b { margin-left: 6px; color: var(--scr-fg); font-weight: var(--fw-label); }
+#lv-call .cl-screen .sbar .live { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-r); animation: lv-attn 1.2s ease-in-out infinite; }
+#lv-call .cl-screen .body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-family: var(--mono); font-size: var(--fs-meta); }
+#lv-call .cl-screen img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--scr-bg); }
+#lv-call .cl-screen .shot { flex: 1 1 auto; min-height: 0; padding: 0; }
+#lv-call .cl-screen .task { display: flex; align-items: center; gap: 10px; font-family: var(--font); }
+#lv-call .cl-screen .task b { font: var(--t-label); color: var(--scr-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-call .cl-screen .files { display: flex; flex-direction: column; gap: 3px; }
+#lv-call .cl-screen .file { display: flex; align-items: center; gap: 7px; padding: 2px 6px; border-radius: 5px; color: var(--scr-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#lv-call .cl-screen .file svg { width: 12px; height: 12px; flex: none; }
+#lv-call .cl-screen .file.hot { color: var(--scr-hi); background: var(--scr-hot); }
+#lv-call .cl-screen .file.hot::after { content: ""; width: 6px; height: 12px; margin-left: 2px; background: var(--scr-pick); animation: lv-caret .8s steps(1) infinite; }
+#lv-call .cl-screen .code { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+#lv-call .cl-screen .code i { display: block; height: 5px; border-radius: 3px; background: var(--k, var(--scr-pick)); opacity: .75; animation: lv-type 1.6s var(--ease) both; }
+#lv-call .cl-screen .big { flex: 1 1 auto; display: grid; place-items: center; text-align: center; gap: 8px; font-family: var(--font); }
+#lv-call .cl-screen .big svg { width: 54px; height: 54px; }
+#lv-call .cl-screen .big b { font: var(--t-label); color: var(--scr-hi); }
+#lv-call .cl-screen .rows { display: flex; flex-direction: column; gap: 5px; overflow: hidden; font-family: var(--font); }
+#lv-call .cl-screen .trow { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; align-items: center; gap: 8px; }
+#lv-call .cl-screen .trow span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--scr-fg); }
+#lv-call .cl-screen .trow .id { color: var(--scr-mute); font-family: var(--mono); }
+#lv-call .cl-screen .trow .lv-bar { width: 70px; height: 7px; background: var(--scr-line); }
+#lv-call .cl-screen code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--scr-bar); color: var(--scr-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+#lv-call .cl-room { position: relative; display: flex; flex-direction: column; align-items: center; gap: 30px; padding: 24px 14px 28px; overflow: hidden; }
+#lv-call .cl-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#lv-call .cl-wires path { fill: none; stroke: var(--wire); stroke-width: 1.6; stroke-linecap: round; }
+#lv-call .cl-top { position: relative; z-index: 1; display: flex; justify-content: center; gap: 80px; }
+#lv-call .cl-board { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; max-width: min(100%, 760px); padding: 8px 14px;
+  border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
+#lv-call .cl-board .lbl { display: inline-flex; align-items: center; gap: 6px; padding-right: 6px; color: var(--muted); font: var(--t-label-serif); }
+#lv-call .cl-board .lbl svg { width: 18px; height: 18px; }
+#lv-call .cl-chip { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--card);
+  font: var(--t-meta); font-variant-numeric: tabular-nums; cursor: pointer; overflow: hidden; }
+#lv-call .cl-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--st-open); }
+#lv-call .cl-chip.s-claimed { border-color: color-mix(in srgb, var(--mc, var(--st-work)) 50%, var(--line)); background: color-mix(in srgb, var(--mc, var(--st-work)) 10%, var(--card)); }
+#lv-call .cl-chip.s-claimed::before { background: var(--mc, var(--st-work)); border-color: var(--mc, var(--st-work)); }
+#lv-call .cl-chip.s-done { border-color: color-mix(in srgb, var(--st-done) 45%, var(--line)); }
+#lv-call .cl-chip.s-done::before { background: var(--st-done); border-color: var(--st-done); }
+#lv-call .cl-chip.s-cancelled { opacity: .5; text-decoration: line-through; }
+#lv-call .cl-chip .fill { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--mc, var(--st-work)); transition: width .8s var(--ease); }
+#lv-call .cl-chip.new { animation: lv-pop .5s var(--ease); }
+#lv-call .cl-chip.flash { animation: lv-flash 1.2s ease-out; }
+#lv-call .cl-crew { position: relative; z-index: 1; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+#lv-call .cl-tile { position: relative; width: var(--tw, 150px); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px 12px; border-radius: 16px;
+  background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: border-color .25s, box-shadow .25s, opacity .4s, transform .25s var(--ease); }
+#lv-call .cl-tile:hover { transform: translateY(-2px); box-shadow: 0 10px 24px var(--tile-shadow); }
+#lv-call .cl-top .cl-tile { width: 160px; }
+#lv-call .cl-tile .nm { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 6px; font: var(--t-body); font-weight: var(--fw-label); color: var(--fg); }
+#lv-call .cl-tile .nm > i { width: 8px; height: 8px; border-radius: 50%; background: var(--mc); flex: none; }
+#lv-call .cl-tile .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-call .cl-tile .nm .cl-eq { display: none; }
+#lv-call .cl-tile.speaking .nm .cl-eq { display: inline-flex; }
+#lv-call .cl-tile .lv-bar.thin { width: 78%; height: 5px; opacity: 0; transition: opacity .3s; }
+#lv-call .cl-tile.busy .lv-bar.thin, #lv-call .cl-tile.done .lv-bar.thin { opacity: 1; }
+#lv-call .cl-tile.you { --mc: var(--c-you); }
+#lv-call .cl-tile.lead { --mc: var(--c-lead); }
+#lv-call .cl-tile.away { opacity: .45; }
+#lv-call .cl-tile.speaking { border-color: var(--mc, var(--accent)); transform: translateY(-3px) scale(1.03); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc, var(--accent)) 28%, transparent), 0 0 28px 4px color-mix(in srgb, var(--mc, var(--accent)) 28%, transparent); }
+#lv-call .cl-tile.target { outline: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+#lv-call .cl-tile.ask { border-color: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 28%, transparent), 0 8px 22px color-mix(in srgb, var(--warn) 22%, transparent); }
+#lv-call .cl-tile.failed { border-color: var(--bad); }
+#lv-call .cl-tile .hand { position: absolute; right: -10px; top: -12px; z-index: 2; display: none; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--warn); color: var(--on-warn); box-shadow: 0 4px 12px color-mix(in srgb, var(--warn) 45%, transparent); cursor: pointer; }
+#lv-call .cl-tile .hand svg { width: 20px; height: 20px; transform-origin: 50% 90%; animation: lv-wave-hand 1.2s ease-in-out infinite; }
+#lv-call .cl-tile.ask .hand { display: grid; animation: lv-raise 1.6s ease-in-out infinite; }
+#lv-call .cl-tile.busy { border-color: color-mix(in srgb, var(--mc) 45%, var(--line)); box-shadow: 0 6px 18px color-mix(in srgb, var(--mc) 16%, transparent); }
+#lv-call .cl-tile.idle .scene { filter: grayscale(.6); opacity: .7; }
+#lv-call .cl-crew.compact .cl-tile { padding: 10px 4px 8px; gap: 4px; }
+#lv-call .cl-crew.compact .cl-tile .nm { font: var(--t-meta); font-weight: var(--fw-label); }
+
+#lv-mon .mo-stack { display: inline-flex; align-self: center; width: 200px; height: 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--line) 80%, transparent); }
+#lv-mon .mo-stack i { height: 100%; width: 0; transition: width .8s var(--ease); }
+#lv-mon .mo-stack .d { background: var(--st-done); } #lv-mon .mo-stack .w { background: var(--st-work); } #lv-mon .mo-stack .p { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+#live .lv-iconb { position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); cursor: pointer; }
+#live .lv-iconb:hover, #live .lv-iconb[aria-expanded=true] { color: var(--fg); border-color: var(--line-strong); }
+#live .lv-iconb svg { width: 17px; height: 17px; }
+#live .lv-iconb.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
+#live .lv-iconb .n { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--bad); color: var(--on-dark); font: var(--t-meta); font-weight: var(--fw-label); line-height: 17px; }
+#lv-mon .mo-n { padding: 0 9px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 14%, var(--card)); font: var(--t-body); font-weight: var(--fw-label); }
+#lv-mon .mo-folders { margin: 0 20px; padding: 10px 6px 12px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 18px; }
+#lv-mon .mo-folders div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font: var(--t-body); }
+#lv-mon .mo-folders b { color: var(--mc, var(--fg)); margin-right: 4px; }
+#lv-mon .mo-net { position: relative; display: grid; grid-template-columns: 130px 190px 110px minmax(0, 1fr); align-items: center; column-gap: 46px; padding: 30px 26px 34px; min-height: 280px; }
+#lv-mon .mo-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+@media (min-width: 1181px) {
+  #lv-mon .mo-net.stack { grid-template-columns: minmax(0, 1fr) 130px 190px 110px minmax(0, 1fr); row-gap: 30px; }
+  #lv-mon .mo-net.stack .mo-user { grid-area: 1 / 2; } #lv-mon .mo-net.stack .mo-lead { grid-area: 1 / 3; } #lv-mon .mo-net.stack .mo-bb { grid-area: 1 / 4; }
+  #lv-mon .mo-net.stack .mo-crew { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; justify-content: center; }
+  #lv-mon .mo-net.stack .mo-m { width: 132px; }
+}
+#lv-mon .mo-wires path { fill: none; stroke: var(--wire); stroke-width: 1.4; }
+#lv-mon .mo-wires .head { fill: var(--wire); }
+#lv-mon .mo-user { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--card);
+  border: 1px solid var(--line); box-shadow: 0 1px 2px var(--tile-shadow); cursor: pointer; }
+#lv-mon .mo-user b { font: var(--t-label); color: var(--fg); }
+#lv-mon .mo-user span { font: var(--t-body); color: var(--muted); line-height: 1.3; }
+#lv-mon .mo-lead { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px; border-radius: 12px; cursor: pointer; }
+#lv-mon .mo-lead > b { font: var(--t-section-serif); color: var(--fg); }
+#lv-mon .mo-bb { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px; border-radius: 12px; background: var(--card);
+  border: 1px solid var(--line); box-shadow: 0 1px 2px var(--tile-shadow); cursor: pointer; font: var(--t-label-serif); color: var(--fg); }
+#lv-mon .mo-bb svg { width: 30px; height: 30px; color: var(--fg); padding: 8px; box-sizing: content-box; border-radius: 10px; background: var(--bg); }
+#lv-mon .mo-crew { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 28px 18px; align-items: start; padding-top: 16px; }
+#lv-mon .mo-m { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 8px; border-radius: 12px; cursor: pointer; transition: background .2s; }
+#lv-mon .mo-m .lv-bar.thin { width: 64%; height: 5px; margin-top: 2px; }
+#lv-mon .mo-m.on .floor { box-shadow: 0 0 0 1px color-mix(in srgb, var(--mc) 45%, transparent), 0 0 24px 5px color-mix(in srgb, var(--mc) 45%, transparent); }
+#lv-mon .mo-m.on .fig { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--mc) 55%, transparent)); }
+#lv-mon .mo-m.off .fig { filter: grayscale(.7); opacity: .6; }
+#lv-mon .mo-m.off .stand:not(.done) .floor { opacity: .6; }
+#lv-mon .mo-m.off .nm { color: var(--muted); }
+#lv-mon .mo-m.ask .floor { box-shadow: 0 0 24px 5px color-mix(in srgb, var(--warn) 55%, transparent); }
+#live .raise { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 4px; padding: 5px; border: 0; border-radius: 999px; background: var(--warn); color: var(--on-warn);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--warn) 45%, transparent); cursor: pointer; animation: lv-raise 1.6s ease-in-out infinite; }
+#live .raise svg { width: 18px; height: 18px; transform-origin: 50% 90%; animation: lv-wave-hand 1.2s ease-in-out infinite; }
+#live .raise b { padding-right: 5px; font: var(--t-body); font-weight: var(--fw-label); }
+#live .raise.big { position: static; padding: 4px 8px 4px 6px; }
+#lv-mon .mo-m .raise { top: 0; right: 16%; }
+#lv-mon .mo-wires path { transition: stroke .4s, stroke-width .4s, fill .4s; }
+#lv-mon .mo-wires path.hot { stroke: var(--hot); stroke-width: 2.6; }
+#lv-mon .mo-wires .head.hot { fill: var(--hot); }
+#live .lit { animation: lv-light 1.2s ease-out; }
+#lv-mon .mo-m:hover { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+#lv-mon .mo-m .stand { margin-bottom: 22px; }
+#lv-mon .mo-m .nm { display: inline-flex; align-items: center; gap: 7px; font: var(--t-label); color: var(--fg); max-width: 100%; }
+#lv-mon .mo-m .nm i { width: 9px; height: 9px; border-radius: 50%; background: var(--mc); flex: none; }
+#lv-mon .mo-m .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-mon .mo-m.away { opacity: .5; }
+#lv-mon .mo-m.bad .nm { color: var(--bad); }
+#lv-mon .mo-lead .stand { margin-bottom: 4px; }
+#lv-mon .mo-m.lit { animation: none; }
+#lv-mon .mo-m.lit .floor { animation: lv-floor 1.2s ease-out; }
+#lv-mon .mo-tbl { margin: 0 20px 20px; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; background: var(--card); }
+#lv-mon .mo-tbl > header { display: flex; align-items: baseline; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+#lv-mon .mo-tbl > header h3 { font: var(--t-section-serif); }
+#lv-mon .mo-tbl table { width: 100%; min-width: 560px; border-collapse: collapse; font: var(--t-body); }
+#lv-mon .mo-tbl th { padding: 8px 12px; text-align: left; font: var(--t-body); font-weight: var(--fw-label); color: var(--fg); border-bottom: 1px solid var(--line); background: var(--bg); }
+#lv-mon .mo-tbl td { padding: 9px 12px; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); vertical-align: middle; }
+#lv-mon .mo-tbl tr:last-child td { border-bottom: 0; }
+#lv-mon .mo-tbl tbody tr.tk { cursor: pointer; transition: background .3s; }
+#lv-mon .mo-tbl tbody tr.tk:hover { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+#lv-mon .mo-tbl tbody tr.tk.flash { animation: lv-flash 2s ease-out; }
+#lv-mon .mo-tbl .ex svg { width: 11px; height: 11px; color: var(--muted); transition: transform .2s; }
+#lv-mon .mo-tbl tr.open .ex svg { transform: rotate(90deg); }
+#lv-mon .mo-tbl .num { color: var(--fg); font-variant-numeric: tabular-nums; width: 40px; }
+#lv-mon .mo-tbl .ttl { font-weight: var(--fw-label); color: var(--fg); }
+#lv-mon .mo-tbl .own { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+#lv-mon .mo-tbl .own i { width: 9px; height: 9px; border-radius: 50%; background: var(--mc, var(--muted)); }
+#lv-mon .mo-tbl .scope { font-family: var(--mono); font-size: var(--fs-meta); color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-mon .mo-state { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font: var(--t-body); white-space: nowrap; background: color-mix(in srgb, var(--muted) 12%, var(--card)); }
+#lv-mon .mo-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); }
+#lv-mon .mo-state.s-claimed { --sc: var(--st-work); background: color-mix(in srgb, var(--st-work) 13%, var(--card)); }
+#lv-mon .mo-state.s-done { --sc: var(--st-done); background: color-mix(in srgb, var(--st-done) 13%, var(--card)); }
+#lv-mon .mo-state.s-open i, #lv-mon .mo-state.s-cancelled i { display: none; }
+#lv-mon .mo-state.s-cancelled { text-decoration: line-through; color: var(--muted); }
+#lv-mon .mo-wait { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#lv-mon .mo-wait .alert { color: var(--bad); } #lv-mon .mo-wait .alert svg { width: 16px; height: 16px; }
+#lv-mon .mo-wait .age { padding: 1px 8px; border-radius: 6px; background: color-mix(in srgb, var(--muted) 12%, var(--card)); font-variant-numeric: tabular-nums; }
+#lv-mon .mo-wait .dep { padding: 1px 7px; border-radius: 6px; background: color-mix(in srgb, var(--muted) 12%, var(--card)); font-variant-numeric: tabular-nums; }
+#lv-mon .mo-tbl tr.more td { padding: 4px 12px 14px 64px; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+#lv-mon .mo-panes { display: flex; flex-direction: column; }
+#lv-mon .mo-pane + .mo-pane { border-top: 1px solid var(--line); }
+#lv-mon .mo-pane > button { display: flex; align-items: baseline; gap: 12px; width: 100%; padding: 14px 20px; border: 0; background: none; cursor: pointer; text-align: left; color: var(--fg); }
+#lv-mon .mo-pane > button svg { width: 12px; height: 12px; color: var(--muted); align-self: center; transition: transform .2s; flex: none; }
+#lv-mon .mo-pane > button[aria-expanded=true] svg { transform: rotate(90deg); }
+#lv-mon .mo-pane > button b { font: var(--t-section-serif); }
+#lv-mon .mo-pane > button .lv-meta { min-width: 0; overflow: hidden; flex-wrap: nowrap; align-items: center; white-space: nowrap; }
+#lv-mon .mo-pane > button .lv-meta > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#lv-mon .mo-pane .body { padding: 0 20px 16px 44px; }
+#lv-mon .mo-log { display: flex; flex-direction: column; gap: 4px; }
+#lv-mon .mo-log li { display: grid; grid-template-columns: 9px 44px minmax(0, 1fr); align-items: baseline; gap: 8px; font: var(--t-body); }
+#lv-mon .mo-log i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); align-self: center; }
+#lv-mon .mo-log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+#lv-mon .mo-log span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-mon .mo-costs { display: flex; flex-direction: column; gap: 8px; }
+#lv-mon .mo-cm { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; }
+#lv-mon .mo-cm .nm { font: var(--t-body); font-weight: var(--fw-label); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-mon .mo-cm .v { font: var(--t-body); font-variant-numeric: tabular-nums; }
+#lv-mon .mo-cm .lv-bar { grid-column: 2 / 4; width: 100%; height: 5px; --bc: var(--mc); }
+#lv-mon .mo-cm .run { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--st-work); vertical-align: middle; animation: lv-attn 1.2s ease-in-out infinite; }
+#lv-mon .mo-costs.dense { gap: 3px; } #lv-mon .mo-costs.dense .lv-bar { height: 4px; }
+
+#live .fx { position: absolute; inset: 0; pointer-events: none; z-index: 25; overflow: visible; }
+#live .fx-fly { position: absolute; left: 0; top: 0; width: 24px; height: 20px; margin: -10px 0 0 -12px; color: var(--fc); filter: drop-shadow(0 0 5px var(--fc)) drop-shadow(0 1px 2px var(--fly-shadow)); }
+#live .fx-fly svg { display: block; width: 100%; height: 100%; }
+#live .fx-trail { position: absolute; left: 0; top: 0; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--fc); }
+#live .fx-ping { position: absolute; left: 0; top: 0; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; border: 2px solid var(--fc); }
+#live .fx-bit { position: absolute; left: 0; top: 0; width: 6px; height: 6px; background: var(--fc); }
+
+@media (max-width: 1180px) {
+  #live .lv-body { grid-template-columns: minmax(0, 1fr); }
+  #live .lv-aside { position: static; max-height: none; }
+  #lv-mon .mo-net { grid-template-columns: minmax(0, 1fr); row-gap: 26px; justify-items: center; }
+  #lv-mon .mo-crew { width: 100%; }
+  #lv-mon .mo-wires { display: none; }
+}
+@media (max-width: 760px) {
+  #live .lv-body { padding: 12px; }
+  #lv-call .cl-stage { grid-template-columns: 1fr; text-align: center; }
+  #lv-call .cl-route { justify-content: center; }
+  #lv-call .cl-kind { align-self: center; }
+  #lv-call .cl-top { gap: 24px; }
+  #lv-mon .mo-tbl .scope, #lv-mon .mo-tbl .hide-narrow { display: none; }
+}
+
+@keyframes lv-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes lv-talkbob { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-3px) rotate(-1.5deg); } 75% { transform: translateY(-1px) rotate(1.5deg); } }
+@keyframes lv-bubble { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 15% { opacity: .95; } 100% { transform: translate(7px, -38px) scale(1.15); opacity: 0; } }
+@keyframes lv-beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dc, var(--good)) 50%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes lv-attn { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes lv-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes lv-pop { from { opacity: 0; transform: scale(.75); } to { opacity: 1; transform: none; } }
+@keyframes lv-sheen { from { background-position: 120% 0; } to { background-position: -80% 0; } }
+@keyframes lv-ring { 0% { transform: scale(.55); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes lv-eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+@keyframes lv-caret { 50% { opacity: 0; } }
+@keyframes lv-type { from { width: 0; } }
+@keyframes lv-share { from { opacity: 0; transform: perspective(1100px) rotateY(-28deg) translateX(40px) scale(.9); } to { opacity: 1; transform: perspective(1100px) rotateY(-5deg); } }
+@keyframes lv-flash { 0% { background: color-mix(in srgb, var(--hit, var(--accent)) 30%, var(--card)); } }
+@keyframes lv-raise { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes lv-light { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hit, var(--accent)) 45%, transparent), 0 0 16px 2px color-mix(in srgb, var(--hit, var(--accent)) 30%, transparent); }
+  60% { box-shadow: 0 0 0 8px transparent, 0 0 20px 4px color-mix(in srgb, var(--hit, var(--accent)) 10%, transparent); } 100% { box-shadow: 0 0 0 10px transparent, 0 0 0 0 transparent; } }
+@keyframes lv-floor { 0% { box-shadow: 0 0 0 2px var(--hit, var(--accent)), 0 0 32px 10px color-mix(in srgb, var(--hit, var(--accent)) 60%, transparent); } 100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; } }
+@keyframes lv-wave-hand { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #live *, #live *::before, #live *::after { animation: none !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<div id="live" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const root = document.getElementById('live');
+if (!root) return;
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+const NS = 'http://www.w3.org/2000/svg';
+const reduceMQ = matchMedia('(prefers-reduced-motion: reduce)');
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } },
+};
+const h = (tag, props, ...kids) => {
+  const e = document.createElement(tag);
+  for (const k in props || {}) { if (k === 'class') e.className = props[k]; else if (k === 'style') e.style.cssText = props[k]; else if (props[k] != null) e.setAttribute(k, props[k]); }
+  e.append(...kids.flat().filter((x) => x != null && x !== false));
+  return e;
+};
+const sv = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const setText = (el, s) => { s = String(s == null ? '' : s); if (el.textContent !== s) el.textContent = s; };
+const ell = (s, n) => { s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); return s.length <= n ? s : s.slice(0, n - 1) + '…'; };
+const base = (p) => String(p || '').replace(/\/+$/, '').split('/').pop();
+const hm = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+const usd = (v) => (v == null ? '–' : v !== 0 && Math.abs(v) < 0.01 ? '$' + v.toFixed(3) : '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const tid = (id) => '#' + id;
+const still = () => reduceMQ.matches;
+
+const P = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const ICONS = {
+  call: `<svg viewBox="0 0 24 24" ${P}><path d="M15 10l4.6-2.3a1 1 0 0 1 1.4.9v6.8a1 1 0 0 1-1.4.9L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>`,
+  graph: `<svg viewBox="0 0 24 24" ${P}><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5l-5.2 5.4M12 11.5l5.2 5.4"/></svg>`,
+  board: `<svg viewBox="0 0 24 24" ${P}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 11h7M8.5 15h5"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" ${P}><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
+  flag: `<svg viewBox="0 0 24 24" ${P}><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>`,
+  trend: `<svg viewBox="0 0 24 24" ${P}><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>`,
+  block: `<svg viewBox="0 0 24 24" ${P}><path d="M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z"/><path d="M12 7.5v5.5M12 16.5v.5"/></svg>`,
+  chat: `<svg viewBox="0 0 24 24" ${P}><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></svg>`,
+  hand: `<svg viewBox="0 0 24 24" ${P}><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5V4a1.5 1.5 0 0 1 3 0v7.5M14 11.5V5.5a1.5 1.5 0 0 1 3 0V13"/><path d="M17 9.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L3.3 14.3a1.6 1.6 0 0 1 2.6-1.8L8 15"/></svg>`,
+  gear: `<svg viewBox="0 0 24 24" ${P}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.7 15a1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.7a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
+  send: `<svg viewBox="0 0 24 24" ${P}><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>`,
+  folder: `<svg viewBox="0 0 24 24" ${P}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+  code: `<svg viewBox="0 0 24 24" ${P}><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg>`,
+  coin: `<svg viewBox="0 0 24 24" ${P}><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5V8M12 16v1.5"/></svg>`,
+  file: `<svg viewBox="0 0 24 24" ${P}><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>`,
+  question: `<svg viewBox="0 0 24 24" ${P}><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17v.5"/></svg>`,
+  users: `<svg viewBox="0 0 24 24" ${P}><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>`,
+  arrow: `<svg viewBox="0 0 24 24" ${P}><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+  x: `<svg viewBox="0 0 24 24" ${P}><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  risk: `<svg viewBox="0 0 24 24" ${P}><path d="M12 3l10 18H2z"/><path d="M12 10v4.5M12 17.5v.5"/></svg>`,
+  play: `<svg viewBox="0 0 24 24" ${P}><path d="M7 4l13 8-13 8z"/></svg>`,
+  monitor: `<svg viewBox="0 0 24 24" ${P}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>`,
+  chev: `<svg viewBox="0 0 24 24" ${P}><path d="M9 6l6 6-6 6"/></svg>`,
+  sliders: `<svg viewBox="0 0 24 24" ${P}><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>`,
+};
+const icon = (name, cls) => { const t = document.createElement('template'); t.innerHTML = ICONS[name] || ICONS.chat; const e = t.content.firstChild; if (cls) e.setAttribute('class', cls); return e; };
+const KIND = {
+  kickoff: ['flag', 'var(--accent)', 'Plan'], progress: ['trend', 'var(--g-mail)', 'Progress'], done: ['check', 'var(--st-done)', 'Done'],
+  blocker: ['block', 'var(--bad)', 'Blocked'], fyi: ['chat', 'var(--muted)', ''], mail: ['chat', 'var(--muted)', ''],
+  post: ['board', 'var(--g-flow)', 'New task'], question: ['question', 'var(--warn)', 'Question'], perm: ['hand', 'var(--warn)', 'Asks to run'],
+  allowed: ['check', 'var(--good)', 'Allowed'], denied: ['x', 'var(--bad)', 'Denied'], answered: ['chat', 'var(--warn)', 'Answered'],
+  summary: ['board', 'var(--c-lead)', 'Round report'],
+};
+
+const FIG = {
+  he: ['........................', '..........aaaa..........', '........aaaaaaaa........', '.......aaaaaaaaaa.......', '......aaaaAaaaaaaa......', '.....aaaAAaaaaaaaaa.....',
+    '.....aaAaaaaaaaaaaa.....', '.....aaaaaaaaaaaaaa.....', '.....aaaaaaaaaaaaaa.....', '.....aafaafaffaafaa.....', '.....aafffffffffFaa.....', '.....aaffeffffeFFaa.....',
+    '......FffeffffeFFF......', '......FpfffffFFFpF......', '.......FffFmmFFFF.......', '........FFFFFFFF........', '...........FF...........', '..........FFFF..........',
+    '.......ssuuuuuuuu.......', '.....ssssswsswssuuu.....', '.....ssssswsswssuuu.....', '.....sssssssssssuuu.....', '.....sssssssssssuuu.....', '.....sssssssssssuuu.....'],
+  she: ['........................', '..........aaaa..........', '........aaaaaaaa........', '.......aaaaaaaaaa.......', '......aaaaAaaaaaaa......', '.....aaaAAaaaaaaaaa.....',
+    '.....aaAaaaaaaaacca.....', '.....aaaaaaaaaaaaaa.....', '.....aaaaaaaaaaaaaa.....', '.....aafaafaffaafaa.....', '....aaafffffffffFaaa....', '....aaaffeffffeFFaaa....',
+    '....aaaffeffffeFFaaa....', '....aaapfffffFFFpaaa....', '....aaaFffFmmFFFFaaa....', '....aaa.FFFFFFFF.aaa....', '....aaa....FF....aaa....', '....aaa...FFFF...aaa....',
+    '....aa.ssswffwuuu.aa....', '....asssssswwsssuuua....', '.....sssssssssssuuu.....', '.....sssssssssssuuu.....', '.....sssssssssssuuu.....', '.....sssssssssssuuu.....'],
+};
+const FW = 24, FH = 24;
+const human = (k) => k === 'he' || k === 'she';
+function palette(kind) {
+  const she = kind === 'she';
+  return { q: '#5A3728', f: '#F1C9A0', F: '#D6A57D', a: she ? '#7A3C28' : '#3A2A20', A: she ? '#AA6446' : '#6E503C', e: '#1A1918', p: '#F0968C', m: '#C76E5A',
+    M: '#7A2E24', s: she ? '#E07A52' : '#3E8FB0', u: she ? '#AA512F' : '#2F6F8A', w: '#F5F4EF', c: '#E8B04A', n: '#F1C9A0' };
+}
+function posePixels(pose) {
+  const out = [], ey = 11, eyes = pose.eyes || 'front', dx = eyes === 'left' ? -1 : eyes === 'right' ? 1 : 0;
+  for (const x of [9, 14]) out.push([x, ey, 'f'], [x, ey + 1, 'f']);
+  if (eyes === 'closed') out.push([9, ey + 1, 'e'], [14, ey + 1, 'e']);
+  else if (eyes === 'happy') out.push([8, ey + 1, 'e'], [9, ey, 'e'], [10, ey + 1, 'e'], [13, ey + 1, 'e'], [14, ey, 'e'], [15, ey + 1, 'e']);
+  else for (const x of [9 + dx, 14 + dx]) out.push([x, ey, 'e'], [x, ey + 1, 'e']);
+  if (pose.mouth === 'open') out.push([11, 14, 'M'], [12, 14, 'M'], [11, 15, 'M'], [12, 15, 'M']);
+  else if (pose.mouth === 'smile') out.push([10, 14, 'm'], [11, 15, 'm'], [12, 15, 'm'], [13, 14, 'm']);
+  if (pose.hand) {
+    for (const [x, y] of [[19, 17], [19, 16], [20, 15], [20, 14], [20, 13], [21, 12]]) out.push([x, y, 's']);
+    for (const [x, y] of [[20, 9], [21, 9], [22, 9], [20, 10], [21, 10], [22, 10], [21, 11], [22, 11], [20, 8], [22, 8]]) out.push([x, y, 'n']);
+  }
+  return out;
+}
+const MARKS = { z: [[19, 1], [20, 1], [21, 1], [20, 2], [19, 3], [20, 3], [21, 3]], spark: [[2, 3], [1, 4], [3, 4], [2, 5], [21, 2], [20, 3], [22, 3], [21, 4], [19, 8]] };
+const MARK_COL = { z: 'var(--muted)', spark: '#F5D76E' };
+const pathCache = new Map();
+function figurePaths(kind, pose) {
+  const key = kind + '|' + JSON.stringify(pose);
+  if (pathCache.has(key)) return pathCache.get(key);
+  const pal = palette(kind), px = new Map(), dy = pose.dy || 0;
+  FIG[kind].forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') px.set(x + ',' + (y + dy), pal[row[x]]); });
+  for (const [x, y, ch] of posePixels(pose)) px.set(x + ',' + (y + dy), pal[ch]);
+  for (const m of pose.marks || []) for (const [x, y] of MARKS[m] || []) px.set(x + ',' + y, MARK_COL[m]);
+  const by = {};
+  for (const [at, col] of px) { if (!col) continue; const [x, y] = at.split(','); (by[col] = by[col] || []).push('M' + x + ' ' + y + 'h1v1h-1z'); }
+  const out = Object.entries(by).map(([c, d]) => [c, d.join('')]);
+  if (pathCache.size > 600) pathCache.clear();
+  pathCache.set(key, out);
+  return out;
+}
+function paintPaths(svgEl, list, store_) {
+  while (store_.length < list.length) store_.push(svgEl.appendChild(document.createElementNS(NS, 'path')));
+  store_.forEach((p, i) => {
+    const [c, d] = list[i] || ['', ''];
+    if (p._d !== d) { p.setAttribute('d', d); p._d = d; }
+    if (p._c !== c) { p.setAttribute('style', c ? 'fill:' + c : ''); p._c = c; }
+  });
+}
+const hold = (pose, n) => Array(n).fill(pose);
+const LOOPS = {
+  work: [...hold({ eyes: 'right' }, 10), ...hold({ eyes: 'closed' }, 1), ...hold({ eyes: 'right' }, 14), ...hold({ eyes: 'front' }, 6)],
+  calm: [...hold({ eyes: 'front' }, 24), ...hold({ eyes: 'closed' }, 1), ...hold({ eyes: 'front' }, 16), ...hold({ eyes: 'left' }, 6), ...hold({ eyes: 'front' }, 10), ...hold({ eyes: 'right' }, 6)],
+  talk: [{ eyes: 'front', mouth: 'open' }, { eyes: 'front', mouth: 'open', dy: -1 }, { eyes: 'front' }, { eyes: 'front', mouth: 'open' }, { eyes: 'front' }, { eyes: 'front', mouth: 'smile' },
+    { eyes: 'front', mouth: 'open' }, { eyes: 'closed' }, { eyes: 'front', mouth: 'open' }, { eyes: 'front' }],
+  idle: [...hold({ eyes: 'closed', marks: ['z'] }, 8), ...hold({ eyes: 'closed' }, 8)],
+  ask: [...hold({ eyes: 'front', hand: true }, 6), ...hold({ eyes: 'front', hand: true, dy: -1 }, 2), ...hold({ eyes: 'front', hand: true }, 4)],
+};
+const ONCE = {
+  done: [{ eyes: 'happy', mouth: 'smile', dy: -1, marks: ['spark'] }, { eyes: 'happy', mouth: 'smile', dy: -2, marks: ['spark'] }, { eyes: 'happy', mouth: 'smile', dy: -1 },
+    { eyes: 'happy', mouth: 'smile' }, ...hold({ eyes: 'happy', mouth: 'smile' }, 4)],
+  look: [...hold({ eyes: 'left' }, 3), ...hold({ eyes: 'right' }, 3), { eyes: 'front' }],
+  wave: [...hold({ eyes: 'happy', hand: true }, 3), ...hold({ eyes: 'happy', hand: true, dy: -1 }, 2), ...hold({ eyes: 'happy', hand: true }, 3)],
+  mail: hold({ eyes: 'happy' }, 5),
+};
+const figures = new Set();
+let clockAt = 0;
+setInterval(() => {
+  if (document.hidden || still()) return;
+  clockAt++;
+  for (const f of figures) { if (!f.el.isConnected) { if (f.dropped) figures.delete(f); else f.dropped = true; continue; } f.dropped = false; f.tick(clockAt); }
+}, 140);
+function hop(el, big) {
+  if (still() || !el.animate) return;
+  const up = big ? -10 : -6;
+  el.animate([{ transform: 'translateY(0) scale(1, 1)' }, { transform: 'translateY(1px) scale(1.06, .92)', offset: 0.15 }, { transform: `translateY(${up}px) scale(.96, 1.06)`, offset: 0.45 },
+    { transform: 'translateY(0) scale(1.04, .96)', offset: 0.8 }, { transform: 'translateY(0) scale(1, 1)' }], { duration: big ? 720 : 520, easing: 'cubic-bezier(.3,.7,.3,1)' });
+}
+
+class Figure {
+  constructor({ kind, size = 2, state = 'calm', attrs = {} }) {
+    Object.assign(this, { kind, size, state, seq: null, at: 0, paths: [] });
+    this.el = sv('svg', { viewBox: `0 -2 ${FW} ${FH + 2}`, width: FW * size, height: (FH + 2) * size, 'shape-rendering': 'crispEdges', 'aria-hidden': 'true', class: 'fig', ...attrs });
+    figures.add(this); this.draw(clockAt);
+  }
+  set(state) { if (state !== this.state) { this.state = state; this.draw(clockAt); } return this; }
+  dress(kind) { if (kind !== this.kind) { this.kind = kind; this.draw(clockAt); } return this; }
+  play(name) { if (!still() && ONCE[name]) { this.seq = ONCE[name]; this.at = 0; } if (name === 'done') hop(this.el, true); return this; }
+  pose(f) {
+    if (this.seq) { const p = this.seq[this.at++]; if (this.at >= this.seq.length) this.seq = null; if (p) return p; }
+    const loop = LOOPS[this.state] || LOOPS.calm;
+    return still() ? loop[0] : loop[f % loop.length];
+  }
+  tick(f) { this.draw(f); }
+  draw(f) { paintPaths(this.el, this.state === 'away' ? [] : figurePaths(this.kind, this.pose(f)), this.paths); }
+}
+const PX = typeof PixelCrew !== 'undefined' ? PixelCrew : null;
+const DIVER_STATE = { work: 'active', calm: 'calm', talk: 'ready', idle: 'idle', ask: 'waiting', failed: 'failed', away: 'idle', starting: 'starting' };
+const DIVER_PLAY = { done: 'done', look: 'look', mail: 'mail', wave: 'look', nod: 'work', type: 'work', read: 'read' };
+class DiverFig {
+  constructor({ color, size = 2, state = 'calm', attrs = {} }) {
+    this.state = state;
+    this.d = PX ? new PX.Diver({ trim: color, body: 'var(--diver)', size, state: DIVER_STATE[state] || 'calm', attrs }) : null;
+    this.el = this.d ? this.d.el : sv('svg', { width: 24 * size, height: 20 * size, ...attrs });
+    this.el.classList.add('fig', 'fl');
+    this.el.style.animationDelay = (-Math.random() * 3).toFixed(2) + 's';
+  }
+  set(state) {
+    if (state !== this.state) { this.state = state; if (this.d) this.d.set(DIVER_STATE[state] || 'calm'); this.el.style.visibility = state === 'away' ? 'hidden' : ''; }
+    return this;
+  }
+  dress() { return this; }
+  play(name) { if (this.d && DIVER_PLAY[name]) this.d.play(DIVER_PLAY[name]); if (name === 'done' || name === 'wave') hop(this.el, name === 'done'); return this; }
+}
+const figureFor = (kind, color, size, state = 'calm', attrs = {}) => (human(kind) ? new Figure({ kind, size, state, attrs })
+  : new DiverFig({ color: kind === 'leader' ? 'var(--c-lead)' : color, size, state, attrs }));
+
+const DW = 46, DH = 30;
+const WOOD = { t: '#B07A4F', d: '#8A5A3A', f: '#6B4429', k: '#4F311D', y: '#C9CED6', Y: '#8E96A3', m: '#2B2F36', n: '#3A3F47' };
+const DESK_ROWS = [
+  '..........yyyyyyyyyyyy........................', 'tttttttttttttttttttttttttttttttttttttttttttttt', 'dddddddddddddddddddddddddddddddddddddddddddddd',
+  '.ffffffffffffffffffffffffffffffffffffffffffff.', '.ffffffffffffffffffffffffffffkkkkkkkkkkkffff.', '.ffffffffffffffffffffffffffffffffffffffffffff.',
+  '.ffffffffffffffffffffffffffffffffkkkfffffffff.', '.kkk......................................kkk.', '.kkk......................................kkk.'];
+const SCREEN = { x: 29, y: 9, w: 13, h: 8 };
+const deskPaths = (() => {
+  const by = {}, put = (x, y, c) => (by[c] = by[c] || []).push('M' + x + ' ' + y + 'h1v1h-1z');
+  DESK_ROWS.forEach((row, y) => [...row].forEach((ch, x) => { if (WOOD[ch]) put(x, 20 + y, WOOD[ch]); }));
+  for (let y = 7; y <= 18; y++) for (let x = 27; x <= 43; x++) if (y === 7 || y === 18 || x === 27 || x === 43) put(x, y, WOOD.m);
+  for (const [x, y] of [[34, 19], [35, 19], [36, 19], [32, 20], [33, 20], [34, 20], [35, 20], [36, 20], [37, 20], [38, 20]]) put(x, y, WOOD.n);
+  return Object.entries(by).map(([c, d]) => [c, d.join('')]);
+})();
+const SCREEN_BG = { code: '#0F1A24', ask: '#2A1F0A', done: '#0E2416', talk: '#0F1A24', off: '#14181D', read: '#101722' };
+function screenPaths(mode, phase) {
+  const by = {}, put = (x, y, c) => { if (x >= 0 && y >= 0 && x < SCREEN.w && y < SCREEN.h) (by[c] = by[c] || []).push('M' + (SCREEN.x + x) + ' ' + (SCREEN.y + y) + 'h1v1h-1z'); };
+  if (mode === 'code') {
+    const cols = ['#7FB8CF', '#E8B04A', '#E07A52', '#9FD3E6', '#B591FF'];
+    for (let r = 0; r < 4; r++) {
+      const line = phase + r, ind = (line * 3) % 4, len = 2 + ((line * 7) % 8);
+      for (let i = 0; i < len; i++) put(1 + ind + i, 1 + r * 2, cols[(line + (i > 3 ? 1 : 0)) % cols.length]);
+    }
+    if (phase % 2) put(2 + ((phase * 3) % 9), 7, '#F5F4EF');
+  } else if (mode === 'ask') {
+    for (const [x, y] of [[5, 0], [6, 0], [7, 0], [8, 1], [7, 2], [6, 3], [6, 5]]) put(x, y, '#E8B04A');
+  } else if (mode === 'done') {
+    for (const [x, y] of [[3, 4], [4, 5], [5, 6], [6, 5], [7, 4], [8, 3], [9, 2]]) put(x, y, '#5FD380');
+  } else if (mode === 'talk') {
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 10 - r * 2 - ((phase + r) % 3); i++) put(1 + i, 1 + r * 2, r % 2 ? '#9FD3E6' : '#F5F4EF');
+  } else if (mode === 'read') {
+    for (let r = 0; r < 4; r++) for (let i = 0; i < 11 - ((r * 5 + phase) % 4); i++) put(1 + i, 1 + r * 2, '#5B6B7C');
+  } else if (phase % 6 < 3) put(1, SCREEN.h - 2, '#5B6570');
+  return Object.entries(by).map(([c, d]) => [c, d.join('')]);
+}
+class Desk {
+  constructor({ kind, color, size = 2, compact = false }) {
+    Object.assign(this, { kind, color, size, compact, mode: 'off', state: 'calm', phase: 0, typing: 0, paths: { screen: [], hands: [] } });
+    const w = compact ? 24 : DW, hgt = compact ? (human(kind) ? 26 : 20) : DH;
+    this.el = h('div', { class: 'scene' + (compact ? ' compact' : ''), style: `width:${w * size}px;height:${hgt * size}px` });
+    this.bubs = h('span', { class: 'bubs', style: `left:${(compact ? 15 : 17) * size}px;top:${(compact ? 1 : 5) * size}px` }, h('i'), h('i'), h('i'));
+    this.place(figureFor(kind, color, size));
+    if (!compact) {
+      this.svg = sv('svg', { viewBox: `0 0 ${DW} ${DH}`, width: DW * size, height: DH * size, 'shape-rendering': 'crispEdges', class: 'desk', 'aria-hidden': 'true' });
+      paintPaths(sv('g', {}, this.svg), deskPaths, []);
+      this.bg = sv('rect', { x: SCREEN.x, y: SCREEN.y, width: SCREEN.w, height: SCREEN.h }, this.svg);
+      this.scr = sv('g', {}, this.svg); this.hands = sv('g', {}, this.svg);
+      this.el.append(this.svg);
+    }
+    this.el.append(this.bubs);
+    figures.add(this); this.draw();
+  }
+  place(fig) {
+    const s = this.size, x = this.compact ? 0 : human(this.kind) ? 1 : 2, y = this.compact ? 0 : human(this.kind) ? -1 : 3;
+    fig.el.style.cssText += `;position:absolute;left:${x * s}px;top:${y * s}px`;
+    if (this.fig) this.fig.el.replaceWith(fig.el); else this.el.prepend(fig.el);
+    this.fig = fig; fig.set(this.state);
+  }
+  set(state, mode) {
+    if (state && state !== this.state) {
+      this.state = state; this.fig.set(state);
+      this.el.classList.toggle('breathing', (state === 'work' || state === 'talk') && !human(this.kind)); this.el.classList.toggle('talking', state === 'talk'); this.el.classList.toggle('failed', state === 'failed');
+    }
+    if (mode && mode !== this.mode) { this.mode = mode; this.draw(); }
+    return this;
+  }
+  dress(kind) { if (kind !== this.kind && human(kind) === human(this.kind)) { this.kind = kind; this.place(figureFor(kind, this.color, this.size, this.state)); } return this; }
+  play(name) { if (still()) return this; if (name === 'type') this.typing = 10; this.fig.play(name); return this; }
+  tick() { this.phase++; if (this.typing > 0) this.typing--; this.draw(); }
+  draw() {
+    if (this.compact) return;
+    this.bg.style.fill = SCREEN_BG[this.mode] || SCREEN_BG.off;
+    paintPaths(this.scr, screenPaths(this.mode, this.phase >> 1), this.paths.screen);
+    const typing = human(this.kind) && this.state !== 'away' && (this.state === 'work' || this.typing > 0), up = typing && this.phase % 2;
+    paintPaths(this.hands, human(this.kind) && this.state !== 'away' && this.state !== 'ask' ? [['#F1C9A0', [[9, 10], [16, 17]].map(([a], i) => `M${a} ${19 + (typing && (i === 0 ? up : !up) ? -1 : 0)}h2v2h-2z`).join('')]] : [], this.paths.hands);
+  }
+}
+
+let tankN = 0;
+function tank(w = 22, hgt = 30) {
+  const id = 'lvtank' + (++tankN), el = sv('svg', { class: 'lv-tank', width: w, height: hgt, viewBox: `0 0 ${w} ${hgt}`, 'aria-hidden': 'true' });
+  const inner = { x: 2.5, y: 2.5, w: w - 5, h: hgt - 5 };
+  const clip = sv('clipPath', { id }, sv('defs', {}, el)); sv('rect', { x: inner.x, y: inner.y, width: inner.w, height: inner.h, rx: 3.5 }, clip);
+  sv('rect', { class: 'glass', x: 1, y: 1, width: w - 2, height: hgt - 2, rx: 5 }, el);
+  const body = sv('g', { 'clip-path': `url(#${id})` }, el), level = sv('g', { class: 'level' }, body);
+  const wave = (cls, amp, phase) => {
+    let d = `M0 ${amp}`;
+    for (let x = 0; x <= inner.w * 2; x += inner.w / 2) d += ` Q${x + inner.w / 4} ${(Math.round(x / (inner.w / 2)) + phase) % 2 ? -amp : amp * 3} ${x + inner.w / 2} ${amp}`;
+    const p = sv('path', { class: 'wave ' + cls, d: d + ` V${hgt + 4} H0 Z`, transform: `translate(${inner.x},0)` }, level);
+    if (!still()) sv('animateTransform', { attributeName: 'transform', type: 'translate', from: `${inner.x} 0`, to: `${inner.x - inner.w} 0`, dur: cls ? '4.2s' : '2.6s', repeatCount: 'indefinite' }, p);
+    return p;
+  };
+  wave('back', 1.6, 1); wave('', 1.8, 0);
+  for (const f of [0.25, 0.5, 0.75]) sv('line', { class: 'mark', x1: w - 6, x2: w - 3, y1: inner.y + inner.h * (1 - f), y2: inner.y + inner.h * (1 - f) }, el);
+  let last = -1;
+  return {
+    el, set(frac, color) {
+      frac = clamp(Number(frac) || 0, 0, 1);
+      if (frac !== last) { level.style.transform = `translateY(${(inner.y + inner.h * (1 - frac) - 2).toFixed(1)}px)`; last = frac; }
+      el.style.setProperty('--tc', color || (frac >= 0.9 ? 'var(--bad)' : frac >= 0.7 ? 'var(--warn)' : 'var(--water)'));
+      el.style.setProperty('--tc2', color ? `color-mix(in srgb, ${color} 55%, #fff)` : 'var(--water-2)');
+      return this;
+    },
+  };
+}
+function bar(cls = '') {
+  const fill = h('i'), el = h('span', { class: 'lv-bar ' + cls }, fill);
+  return { el, set(frac, color) { fill.style.width = (clamp(Number(frac) || 0, 0, 1) * 100).toFixed(1) + '%'; if (color) el.style.setProperty('--bc', color); return this; } };
+}
+
+const st = { snap: null, recvAt: 0, rate: 1, conn: 'connecting', view: null, source: null, closed: false, actions: null, ctl: null, gen: 0,
+  avatar: store.get('deepcrew-live-avatar') === 'she' ? 'she' : 'he' };
+const listeners = {};
+const on = (name, fn) => (listeners[name] = listeners[name] || []).push(fn);
+const emit = (name, detail) => { for (const fn of listeners[name] || []) { try { fn(detail); } catch (e) { console.error(e); } } };
+const viewOnly = () => !!(st.snap && st.snap.view_only);
+const ROUTE_BASE = '/api/live/';
+function post(path, body) {
+  if (st.actions) return Promise.resolve(st.actions(path, body));
+  return fetch(path, { method: 'POST', headers: { 'X-Deepcrew-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; });
+}
+function getJSON(path) {
+  return fetch(path, { headers: { 'X-Deepcrew-Token': TOKEN }, cache: 'no-store' }).then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; });
+}
+function onBlock(block) {
+  let name = 'message'; const data = [];
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) name = line.slice(6).trim();
+    else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
+  }
+  if (!data.length) return;
+  const msg = JSON.parse(data.join('\n'));
+  if (name === 'env') { window.dispatchEvent(new Event('deepcrew-env')); return; }
+  const snap = name === 'snapshot' ? msg : name === 'update' ? msg.snapshot : null;
+  if (!snap) return;
+  st.snap = snap; st.recvAt = performance.now(); st.rate = snap.rate || 1;
+  setConn(snap.view_only ? 'other' : 'live');
+  const events = name === 'update' ? msg.events || [] : [], reset = name !== 'update' || !!msg.reset;
+  for (const v of parts()) v.data(snap, events, reset);
+  emit('snapshot', { snap, events, reset });
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function stream(gen) {
+  let delay = 800;
+  while (!st.closed && gen === st.gen) {
+    if (st.source === 'push') return;
+    const ctl = st.ctl = new AbortController(); let timer;
+    const bump = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 45000); };
+    try {
+      setConn('connecting'); bump();
+      const res = await fetch(st.source || ROUTE_BASE + 'events', { headers: { 'X-Deepcrew-Token': TOKEN }, cache: 'no-store', signal: ctl.signal });
+      if (res.status === 403) { setConn('denied'); return; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const rd = res.body.getReader(), dec = new TextDecoder(); let buf = ''; delay = 800;
+      for (;;) {
+        const { value, done } = await rd.read(); if (done) break;
+        bump(); buf += dec.decode(value, { stream: true });
+        let i; while ((i = buf.indexOf('\n\n')) >= 0) { const b = buf.slice(0, i); buf = buf.slice(i + 2); if (gen === st.gen) onBlock(b); }
+      }
+    } catch (e) { }
+    clearTimeout(timer);
+    if (st.closed || gen !== st.gen) return;
+    setConn('lost'); await sleep(delay); delay = Math.min(delay * 2, 5000);
+  }
+}
+function connect(source) {
+  if (st.source === (source || null) && st.gen) return;
+  st.source = source || null; st.gen++;
+  if (st.ctl) st.ctl.abort();
+  for (const v of parts()) v.reset();
+  stream(st.gen);
+}
+window.addEventListener('deepcrew-done', () => { st.closed = true; if (st.ctl) st.ctl.abort(); });
+
+const shell = document.querySelector('main');
+const SETTINGS_TITLE = document.title, APP = SETTINGS_TITLE.split(' ')[0] || 'deepcrew';
+const tabList = h('nav', { class: 'lv-tablist', role: 'tablist', 'aria-label': 'Views' }), tabs = {};
+const chipsEl = h('div', { class: 'lv-chips', hidden: '' }), projectEl = h('span', { hidden: '' });
+const gear = h('button', { type: 'button', class: 'lv-gear', title: 'Settings of this view', 'aria-label': 'View settings', hidden: '' }, icon('sliders'));
+const topBar = h('header', { class: 'lv-top' }, h('span', { class: 'lv-brand' }, h('b', {}, APP), projectEl), tabList, chipsEl, gear);
+const colours = document.getElementById('theme-box');
+if (colours) topBar.append(colours);
+document.body.prepend(topBar);
+const mainCol = h('div', { class: 'lv-main' }), asideCol = h('aside', { class: 'lv-aside', 'aria-label': 'You and the leader' });
+root.append(h('div', { class: 'lv-body' }, mainCol, asideCol));
+function addTab(id, label, iconName, { onShow, onHide, view, svg } = {}) {
+  const own = svg ? (() => { const t = document.createElement('template'); t.innerHTML = svg; return t.content.firstChild; })() : null;
+  const b = h('button', { type: 'button', role: 'tab', 'aria-selected': 'false' }, own || (iconName ? icon(iconName) : null), h('span', {}, label));
+  if (id === 'settings') b.classList.add('end');
+  b.onclick = () => show(id);
+  tabList.append(b);
+  tabs[id] = { b, onShow, onHide, view };
+  return tabs[id];
+}
+let shown = null;
+function show(id, keep) {
+  if (!tabs[id]) id = 'settings';
+  const was = shown; shown = id;
+  if (was && was !== id && tabs[was].onHide) tabs[was].onHide();
+  const t = tabs[id], live = id !== 'settings';
+  if (shell) shell.hidden = live;
+  root.hidden = !live; chipsEl.hidden = gear.hidden = !live;
+  if (colours) colours.hidden = live;
+  document.body.classList.toggle('lv-on', live);
+  for (const k in tabs) tabs[k].b.setAttribute('aria-selected', String(k === id));
+  for (const [k, v] of Object.entries(views)) v.el.hidden = !(live && k === (t.view || id));
+  st.view = live ? t.view || id : null;
+  closePop();
+  if (t.onShow) t.onShow();
+  if (live && st.snap) { views[st.view].paint(false); aside.paint(false); }
+  document.title = live ? `${APP} ${t.b.textContent.toLowerCase()}: ${(st.snap && st.snap.team) || 'no team'}` : SETTINGS_TITLE;
+  if (!keep) { try { history.replaceState(null, '', location.pathname + location.search + (live ? '#' + id : '')); } catch (e) { } store.set('deepcrew-ui-tab', id); }
+}
+const wanted = () => { const want = location.hash.slice(1) || store.get('deepcrew-ui-tab') || 'call'; return tabs[want] ? want : want === 'monitor' ? 'monitor' : 'call'; };
+addEventListener('hashchange', () => show(wanted(), true));
+const parts = () => [head, aside, ...Object.values(views)];
+function setConn(state) {
+  st.conn = state;
+  for (const v of parts()) v.conn(state);
+}
+
+const members = () => (st.snap ? st.snap.members : []);
+const memberOf = (n) => members().find((m) => m.name === n);
+const mcolor = (n) => { const i = members().findIndex((m) => m.name === n); return n === 'user' ? 'var(--c-you)' : n === 'leader' ? 'var(--c-lead)' : i < 0 ? 'var(--muted)' : `var(--m${i % 10})`; };
+const who = (n) => (n === 'user' ? 'You' : n === 'leader' ? 'Leader' : n === 'all' ? 'Everyone' : n);
+const kindOf = (n) => (n === 'user' ? st.avatar : n === 'leader' ? 'leader' : 'diver');
+const mini = (n, size = 1) => { const f = figureFor(kindOf(n), mcolor(n), size); figures.delete(f); f.el.classList.remove('fl'); return f.el; };
+const asking = (snap) => new Set([...snap.pending.perms, ...snap.pending.questions].map((r) => r.member));
+const requests = (snap) => {
+  const out = new Map();
+  for (const r of [...snap.pending.perms.map((p) => ({ ...p, kind: 'perm' })), ...snap.pending.questions.map((q) => ({ ...q, kind: 'question' }))].sort((a, b) => b.age_s - a.age_s)) {
+    if (!out.has(r.member)) out.set(r.member, { kind: r.kind, age_s: r.age_s });
+  }
+  return out;
+};
+const age = (s) => { s = Math.max(0, Math.round(s)); return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm' : Math.floor(s / 3600) + 'h'; };
+const since = (s) => s + ((performance.now() - st.recvAt) / 1000) * (st.rate || 1);
+const place = (parent, node, i) => { if (parent.children[i] !== node) parent.insertBefore(node, parent.children[i] || null); };
+
+const PARTS = [['finished', 'check', 'var(--st-done)'], ['running', 'trend', 'var(--accent)'], ['risks', 'risk', 'var(--warn)'], ['decide', 'question', 'var(--warn)']];
+function feedOf(snap, filter) {
+  const sums = (snap.summaries || []).map((x) => ({ ts: x.ts, kind: 'summary', from: 'leader', to: 'user', text: x.text, parts: x }));
+  const list = [...(snap.feed || []), ...sums].sort((a, b) => a.ts - b.ts);
+  return filter === 'you' ? list.filter((l) => l.from === 'user' || l.to === 'user' || l.re) : list.slice(-70);
+}
+const lineKind = (l) => (l.kind === 'mail' && l.report && l.report !== 'fyi' ? l.report : l.kind === 'answer' ? l.state : l.kind);
+const kindColour = (l) => (KIND[lineKind(l)] || KIND.mail)[1];
+function report(x) {
+  const rows = PARTS.filter(([k]) => (x[k] || []).length).map(([k, ic, col]) => h('div', { class: k === 'decide' ? 'decide' : '', style: `--rc:${col}` }, icon(ic), h('span', {}, x[k].join(', '))));
+  return rows.length ? h('div', { class: 'as-report' }, ...rows) : null;
+}
+
+let popOpen = null;
+function closePop() {
+  if (popOpen) { popOpen.remove(); popOpen = null; }
+  if (colours && colours.parentNode !== topBar) { topBar.append(colours); colours.hidden = !!shown && shown !== 'settings'; }
+}
+document.addEventListener('pointerdown', (e) => { if (popOpen && !popOpen.contains(e.target) && !e.target.closest('.lv-gear, .cl-tile, .cl-chip, .mo-m')) closePop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
+function placePop(pop, anchor) {
+  const host = anchor.closest('.lv-view') || root;
+  host.append(pop); popOpen = pop;
+  const r = anchor.getBoundingClientRect(), o = host.getBoundingClientRect();
+  const left = clamp(r.left - o.left + r.width / 2 - pop.offsetWidth / 2, 12, o.width - pop.offsetWidth - 12);
+  const below = r.bottom - o.top + 8, above = r.top - o.top - pop.offsetHeight - 8;
+  pop.style.left = left + 'px';
+  pop.style.top = Math.max(8, below + pop.offsetHeight < o.height - 8 || above < 8 ? below : above) + 'px';
+}
+const closer = () => { const x = h('button', { type: 'button', class: 'x', 'aria-label': 'Close' }, '×'); x.onclick = closePop; return x; };
+function openSettings(anchor) {
+  closePop();
+  const snap = st.snap, langs = (snap && snap.langs) || ['English'];
+  const sel = h('select', { 'aria-label': 'Replies in' }, ...langs.map((l) => h('option', { value: l }, l)));
+  sel.value = (snap && snap.lang) || 'English'; sel.disabled = !snap || !snap.team || viewOnly();
+  const note = h('span', { class: 'lv-chip', hidden: '' });
+  sel.onchange = () => {
+    note.hidden = false; setText(note, '…');
+    post(ROUTE_BASE + 'lang', { lang: sel.value }).then(() => setText(note, '✓')).catch((e) => setText(note, String(e.message || e)));
+  };
+  const pick = h('div', { class: 'lv-pick', role: 'group', 'aria-label': 'You on the call' });
+  for (const k of ['he', 'she']) {
+    const b = h('button', { type: 'button', 'aria-pressed': String(st.avatar === k), title: k === 'he' ? 'He' : 'She' }, new Figure({ kind: k, size: 2, state: 'calm' }).el);
+    b.onclick = () => { st.avatar = k; store.set('deepcrew-live-avatar', k); for (const x of pick.children) x.setAttribute('aria-pressed', String(x === b)); emit('avatar', k); };
+    pick.append(b);
+  }
+  const pop = h('div', { class: 'lv-pop', role: 'dialog', 'aria-label': 'View settings' }, h('header', {}, icon('sliders'), h('b', {}, 'This view'), closer()),
+    h('div', { class: 'prow' }, h('span', {}, 'Replies in'), h('span', {}, note, ' ', sel)), h('div', { class: 'prow' }, h('span', {}, 'You'), pick),
+    colours ? h('div', { class: 'prow' }, h('span', {}, 'Colours'), colours) : null);
+  if (colours) colours.hidden = false;
+  placePop(pop, anchor);
+}
+gear.onclick = (e) => { e.stopPropagation(); openSettings(gear); };
+function openMember(name, anchor) {
+  closePop();
+  const snap = st.snap, m = snap && memberOf(name);
+  if (!m) return;
+  const t = m.task != null ? snap.tasks.find((x) => String(x.id) === String(m.task)) : null;
+  const said = feedOf(snap, 'all').filter((l) => l.from === name || l.to === name).slice(-4).reverse();
+  const write = h('button', { type: 'button', class: 'lv-btn primary' }, icon('send'), 'Write to ' + name);
+  write.disabled = viewOnly() || !snap.team;
+  write.onclick = () => { closePop(); aside.setTo(name); aside.focusBox(); };
+  const tk = tank(18, 24); tk.set((m.pct || 0) / 100, mcolor(name));
+  const pop = h('div', { class: 'lv-pop', role: 'dialog', 'aria-label': name, style: `--mc:${mcolor(name)}` },
+    h('header', {}, mini(name, 2), h('b', {}, name), closer()),
+    m.role ? h('p', {}, m.role) : null,
+    t ? h('div', { class: 'prow' }, h('p', {}, h('b', {}, tid(t.id) + ' '), t.title), tk.el) : null,
+    t && (t.scope || []).length ? h('div', { class: 'chips' }, ...t.scope.map((p) => h('span', { class: 'lv-chip hot', title: 'Its lease' }, icon('file'), p))) : null,
+    (m.region || []).length ? h('div', { class: 'chips' }, ...m.region.map((p) => h('span', { class: 'lv-chip', title: 'Its region' }, icon('folder'), p))) : null,
+    said.length ? h('ul', {}, ...said.map((l) => h('li', { style: `--kc:${kindColour(l)}` }, ell(l.gist || l.text, 110)))) : null,
+    h('div', { class: 'acts' }, write));
+  placePop(pop, anchor);
+}
+function openTask(id, anchor) {
+  closePop();
+  const t = st.snap && st.snap.tasks.find((x) => String(x.id) === String(id));
+  if (!t) return;
+  const pop = h('div', { class: 'lv-pop', role: 'dialog', 'aria-label': 'Task ' + id, style: t.owner ? `--mc:${mcolor(t.owner)}` : '' },
+    h('header', {}, icon('board'), h('b', {}, tid(t.id)), t.owner ? h('span', { class: 'lv-chip hot' }, t.owner) : null, closer()),
+    h('p', {}, h('b', {}, t.title)), t.description ? h('p', {}, ell(t.description, 320)) : null,
+    (t.scope || []).length ? h('div', { class: 'chips' }, ...t.scope.map((p) => h('span', { class: 'lv-chip' }, icon('file'), p))) : null,
+    t.summary ? h('p', {}, ell(t.summary, 320)) : null);
+  placePop(pop, anchor);
+}
+
+const FLY = {
+  mail: '<svg viewBox="0 0 22 18"><rect x="1" y="2" width="20" height="14" rx="2" fill="currentColor"/><path d="M2 3l9 7 9-7" fill="none" stroke="#fff" stroke-width="1.6" opacity=".85"/></svg>',
+  say: '<svg viewBox="0 0 22 18"><path d="M3 1h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4v-4H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="currentColor"/><g fill="#fff" opacity=".9"><circle cx="7" cy="7" r="1.4"/><circle cx="11" cy="7" r="1.4"/><circle cx="15" cy="7" r="1.4"/></g></svg>',
+  post: '<svg viewBox="0 0 22 18"><path d="M4 1h14v11l-5 5H4z" fill="currentColor"/><path d="M13 17v-5h5" fill="#000" opacity=".25"/><path d="M7 5h8M7 8h6" stroke="#fff" stroke-width="1.4" opacity=".85"/></svg>',
+  done: '<svg viewBox="0 0 22 18"><path d="M4 1h14v11l-5 5H4z" fill="currentColor"/><path d="M7 8l3 3 5-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  ask: '<svg viewBox="0 0 22 18"><path d="M3 1h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4v-4H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="currentColor"/><path d="M9 4.6a2 2 0 1 1 2.6 1.9c-.6.2-.6.6-.6 1.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="10.3" r="1" fill="#fff"/></svg>',
+};
+function makeFx(host) {
+  const el = h('div', { class: 'fx', 'aria-hidden': 'true' }), beams = sv('svg', { width: '100%', height: '100%', style: 'position:absolute;inset:0;overflow:visible' });
+  el.append(beams);
+  let flying = 0;
+  const centreOf = (node) => { const r = node.getBoundingClientRect(), o = host.getBoundingClientRect(); return { x: r.left - o.left + r.width / 2, y: r.top - o.top + Math.min(r.height / 2, 46) }; };
+  function ping(p, color) {
+    const r = h('i', { class: 'fx-ping', style: `--fc:${color}` });
+    el.append(r);
+    r.animate([{ transform: `translate(${p.x}px, ${p.y}px) scale(.3)`, opacity: 0.9 }, { transform: `translate(${p.x}px, ${p.y}px) scale(1.6)`, opacity: 0 }], { duration: 560, easing: 'ease-out' }).onfinish = () => r.remove();
+  }
+  function burst(p, color, n = 14) {
+    if (still()) return;
+    for (let i = 0; i < n; i++) {
+      const b = h('i', { class: 'fx-bit', style: `--fc:${i % 3 ? color : 'var(--a-gold)'}` }), a = (Math.PI * 2 * i) / n + Math.random() * 0.4, d = 30 + Math.random() * 34;
+      el.append(b);
+      b.animate([{ transform: `translate(${p.x}px, ${p.y}px) rotate(0)`, opacity: 1 }, { transform: `translate(${p.x + Math.cos(a) * d}px, ${p.y + Math.sin(a) * d + 26}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }],
+        { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => b.remove();
+    }
+  }
+  function light(node, color) {
+    if (still() || !node.classList) return;
+    node.style.setProperty('--hit', color); node.classList.remove('lit'); void node.offsetWidth; node.classList.add('lit');
+    clearTimeout(node.litTimer); node.litTimer = setTimeout(() => node.classList.remove('lit'), 1500);
+  }
+  function bump(node, color) { if (!still()) { light(node, color); node.animate([{ transform: 'none' }, { transform: 'translateY(-4px)' }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.3,.7,.3,1)' }); } }
+  function fly(a, b, kind, color, delay = 0) {
+    if (still() || document.hidden || host.hidden || flying >= 18 || !a || !b || a === b) return;
+    flying++;
+    setTimeout(() => {
+      if (!a.isConnected || !b.isConnected || host.hidden) { flying--; return; }
+      const p0 = centreOf(a), p1 = centreOf(b), dx = p1.x - p0.x, lift = clamp(24 + Math.abs(dx) * 0.18, 24, 90), c = { x: (p0.x + p1.x) / 2, y: Math.min(p0.y, p1.y) - lift };
+      const at = (u) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * c.x + u * u * p1.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * c.y + u * u * p1.y });
+      const beam = sv('path', { d: `M${p0.x} ${p0.y} Q${c.x} ${c.y} ${p1.x} ${p1.y}`, fill: 'none', stroke: color, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '6 9', opacity: 0 }, beams);
+      const dur = clamp(1150 / Math.max(1, st.rate / 30), 600, 1150);
+      beam.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.2 }, { opacity: 0.85, offset: 0.75 }, { opacity: 0 }], { duration: dur + 250 }).onfinish = () => beam.remove();
+      const item = h('i', { class: 'fx-fly', style: `--fc:${color}` }); item.innerHTML = FLY[kind] || FLY.mail; el.append(item);
+      const trail = [0, 1, 2].map((i) => { const t = h('i', { class: 'fx-trail', style: `--fc:${color};opacity:${0.5 - i * 0.14}` }); el.append(t); return t; });
+      const frames = (lag) => Array.from({ length: 17 }, (_, i) => { const u = clamp(i / 16 - lag, 0, 1), q = at(u); return { transform: `translate(${q.x}px, ${q.y}px) scale(${lag ? 1 - lag * 4 : 0.75 + 0.5 * Math.sin(Math.PI * u)})` }; });
+      a.animate([{ transform: 'none' }, { transform: 'scale(.96)' }, { transform: 'none' }], { duration: 240 }); light(a, color);
+      trail.forEach((t, i) => t.animate(frames((i + 1) * 0.05), { duration: dur, easing: 'cubic-bezier(.45,0,.25,1)' }).onfinish = () => t.remove());
+      item.animate(frames(0), { duration: dur, easing: 'cubic-bezier(.45,0,.25,1)' }).onfinish = () => { item.remove(); flying--; ping(p1, color); bump(b, color); };
+    }, delay);
+  }
+  return { el, fly, ping, burst, bump, light, centreOf };
+}
+
+const head = (() => {
+  const dot = h('i'), team = h('b');
+  const teamChip = h('span', { class: 'lv-chip-s', style: '--dc:var(--good)' }, dot, team);
+  const dots = h('span', { class: 'lv-dots' }), crewN = h('span', { hidden: '' }), crewChip = h('span', { class: 'lv-chip-s' }, dots, crewN);
+  const needN = h('b'), needChip = h('button', { type: 'button', class: 'lv-chip-s need', hidden: '' }, icon('hand'), needN);
+  const tasksBar = bar(), tasksN = h('b'), tasksOf = h('span', { class: 'of' });
+  const doneChip = h('span', { class: 'lv-chip-s' }, icon('check'), h('span', {}, tasksN, tasksOf), tasksBar.el);
+  const spendTank = tank(14, 20), spendN = h('b'), spendChip = h('span', { class: 'lv-chip-s' }, spendTank.el, spendN);
+  chipsEl.append(teamChip, crewChip, needChip, doneChip, spendChip);
+  needChip.onclick = () => aside.focusNeeds();
+  const DOTS = 16;
+  function paint(snap) {
+    projectEl.hidden = !snap.team;
+    for (const c of [crewChip, needChip, doneChip, spendChip]) c.hidden = !snap.team;
+    setText(team, snap.team || 'no team');
+    if (!snap.team) return;
+    setText(projectEl, base(snap.project));
+    teamChip.title = [snap.team, snap.model, snap.effort].filter(Boolean).join(', ');
+    const asks = asking(snap), on_ = snap.members.filter((m) => m.state === 'active' || m.state === 'starting').length;
+    const sig = snap.members.map((m) => m.name + m.state + asks.has(m.name)).join();
+    if (dots.dataset.sig !== sig) {
+      dots.dataset.sig = sig;
+      dots.hidden = snap.members.length > DOTS; crewN.hidden = !dots.hidden;
+      dots.replaceChildren(...(dots.hidden ? [] : snap.members.map((m) => h('i', { style: `--mc:${mcolor(m.name)}`, title: m.name, class: asks.has(m.name) ? 'ask'
+        : m.state === 'failed' ? 'bad' : m.state === 'active' || m.state === 'starting' ? 'on' : '' }))));
+    }
+    crewN.replaceChildren(icon('users'), h('b', {}, on_), '/' + snap.members.length);
+    crewChip.title = `${on_} of ${snap.members.length} at work`;
+    const c = snap.counts, total = c.open + c.claimed + c.done;
+    tasksBar.set(total ? c.done / total : 0); setText(tasksN, c.done); setText(tasksOf, '/' + total);
+    doneChip.title = `${c.done} of ${total} tasks done`;
+    const b = snap.budget || {}, spent = b.spent;
+    spendTank.set(b.usd ? (spent || 0) / b.usd : spent ? 0.08 : 0); setText(spendN, usd(spent));
+    spendChip.title = b.usd ? `Spent ${usd(spent)} of ${usd(b.usd)}` : `Spent ${usd(spent)}`;
+    const n = snap.pending.perms.length + snap.pending.questions.length;
+    needChip.hidden = !n; setText(needN, n); needChip.title = `${n} waiting for you`;
+  }
+  return {
+    conn(state) {
+      dot.className = state === 'live' ? 'beat' : '';
+      teamChip.style.setProperty('--dc', state === 'live' ? 'var(--good)' : state === 'other' ? 'var(--a-sea)' : 'var(--warn)');
+      if (state !== 'live') teamChip.title = { other: 'not live', lost: 'reconnecting', denied: 'open the page with the address deepcrew printed', connecting: 'connecting' }[state] || state;
+    },
+    data(snap) { paint(snap); }, reset() {}, paint,
+  };
+})();
+
+const aside = (() => {
+  const s = { snap: null, keys: new Map(), pinned: true, to: 'leader', filter: store.get('deepcrew-call-filter') === 'all' ? 'all' : 'you', needSig: '', open: new Set(), leadKey: '' };
+  const leadFig = new DiverFig({ color: 'var(--c-lead)', size: 2, state: 'calm' });
+  const leadSay = h('p', { class: 'say' }), leadFold = h('button', { type: 'button', class: 'as-fold', 'aria-expanded': 'false', hidden: '' }, icon('chev'), h('span', {}, 'Report details'));
+  const leadRep = h('div', { hidden: '' });
+  const leadCard = h('section', { class: 'lv-card', 'aria-label': 'The leader to you', hidden: '' },
+    h('div', { class: 'lv-card-head' }, h('h3', {}, 'Leader → You')),
+    h('div', { class: 'as-lead' }, h('span', { class: 'as-fig' }, leadFig.el), h('div', {}, leadSay, leadFold, leadRep)));
+  leadSay.onclick = () => leadSay.classList.toggle('open');
+  leadFold.onclick = () => { leadRep.hidden = !leadRep.hidden; leadFold.setAttribute('aria-expanded', String(!leadRep.hidden)); };
+  const lines = h('ol', { class: 'as-lines', 'aria-live': 'polite' });
+  const only = { you: h('button', { type: 'button' }, 'With you'), all: h('button', { type: 'button' }, 'Everyone') };
+  const toSel = h('select', { class: 'as-to', 'aria-label': 'Send to' });
+  const box = h('textarea', { placeholder: 'Message the leader…', 'aria-label': 'Your message', rows: '1', disabled: '' });
+  const sendB = h('button', { type: 'button', class: 'lv-btn primary', disabled: '' }, 'Send');
+  const chatCard = h('section', { class: 'lv-card as-chat', 'aria-label': 'Chat' },
+    h('div', { class: 'lv-card-head' }, h('h3', {}, 'Chat'), toSel, h('span', { class: 'lv-end' }, h('span', { class: 'lv-seg', role: 'group', 'aria-label': 'Show' }, only.you, only.all))),
+    lines, h('div', { class: 'as-send' }, box, sendB));
+  const needN = h('span', { class: 'as-count' }), needList = h('div', { class: 'as-needs' });
+  const needCard = h('section', { class: 'lv-card', 'aria-label': 'Needs you', hidden: '' }, h('div', { class: 'lv-card-head' }, h('h3', {}, 'Needs you'), needN), needList);
+  asideCol.append(leadCard, chatCard, needCard);
+
+  function paintLead(snap) {
+    const said = (snap.feed || []).filter((l) => l.from === 'leader' && l.to === 'user').pop(), sum = (snap.summaries || [])[0];
+    const last = sum && (!said || sum.ts >= said.ts) ? { ts: sum.ts, text: sum.text, parts: sum } : said ? { ts: said.ts, text: said.text || said.gist } : null;
+    leadCard.hidden = !last;
+    if (!last) return;
+    const key = last.ts + '|' + String(last.text).slice(0, 60);
+    if (key === s.leadKey) return;
+    const fresh = !!s.leadKey; s.leadKey = key;
+    leadCard.title = new Date(last.ts * 1000).toLocaleString(); setText(leadSay, last.text || ''); leadSay.classList.remove('open');
+    const rep = last.parts ? report(last.parts) : null;
+    leadRep.replaceChildren(...(rep ? [rep] : [])); leadFold.hidden = !rep; leadRep.hidden = true; leadFold.setAttribute('aria-expanded', 'false');
+    if (fresh) { leadFig.play('mail'); if (!still()) leadCard.animate([{ boxShadow: '0 0 0 3px color-mix(in srgb, var(--c-lead) 35%, transparent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 1400, easing: 'ease-out' }); }
+  }
+
+  const lineKey = (l, showRe) => [l.ts, l.kind, l.from, l.to, String(l.text).slice(0, 40), showRe ? 1 : 0].join('|');
+  function lineEl(l, showRe) {
+    const k = lineKind(l), def = KIND[k] || KIND.mail, toYou = l.to === 'user' && l.from !== 'user', decided = l.kind === 'answer' && (k === 'allowed' || k === 'denied');
+    const short = l.gist || l.text, full = decided ? '' : String(l.text || ''), word = def[2], to = l.to !== 'user' && l.to !== 'leader' && l.to !== 'all' ? l.to : '';
+    const text = h('p', { class: 'as-text' }, toYou ? full || short : short);
+    let extra = null;
+    if (!toYou && full && full.replace(/\s+/g, ' ').trim() !== String(short).trim()) {
+      const more = h('button', { type: 'button', class: 'as-more' }, 'more'), boxEl = h('div', { class: 'as-full', hidden: '' }, full);
+      more.onclick = () => { boxEl.hidden = !boxEl.hidden; setText(more, boxEl.hidden ? 'more' : 'less'); };
+      text.append(' ', more); extra = boxEl;
+    } else text.onclick = () => text.classList.toggle('open');
+    const when = new Date(l.ts * 1000);
+    return h('li', { class: 'as-line' + (l.from === 'user' ? ' mine' : l.to === 'user' ? ' to-me' : ''), title: when.toLocaleString() + (word ? ', ' + word : '') },
+      h('span', { class: 'who' }, h('span', {}, who(l.from)), to ? h('span', { class: 'to' }, '→ ' + to) : null),
+      h('div', { class: 'as-bub' + (word ? ' kind' : '') + (l.re ? ' re' : ''), style: `--kc:${def[1]}`, title: l.re && showRe ? 'Passing on your words: ' + l.re.text : null },
+        word ? h('span', { class: 'as-k' }, icon(def[0])) : null, l.text ? text : null, extra, l.parts ? report(l.parts) : null));
+  }
+  function paintChat(snap, fresh) {
+    const list = feedOf(snap, s.filter);
+    if (!list.length) { lines.replaceChildren(h('li', { class: 'lv-empty' }, icon('chat'))); s.keys.clear(); return; }
+    const next = new Map();
+    const kids = list.map((l, i) => {
+      const prev = list[i - 1], showRe = !!l.re && !(prev && prev.re && prev.re.text === l.re.text), k = lineKey(l, showRe);
+      let e = s.keys.get(k); if (!e) { e = lineEl(l, showRe); if (fresh && s.keys.size) e.classList.add('new'); } next.set(k, e); return e;
+    });
+    kids.forEach((e, i) => e.classList.toggle('cont', i > 0 && list[i - 1].from === list[i].from && list[i - 1].to === list[i].to));
+    if (kids.length !== lines.children.length || kids.some((e, i) => lines.children[i] !== e)) lines.replaceChildren(...kids);
+    s.keys = next;
+    if (s.pinned) lines.scrollTop = lines.scrollHeight;
+  }
+  lines.addEventListener('scroll', () => { s.pinned = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40; });
+  function setFilter(k) {
+    s.filter = k; store.set('deepcrew-call-filter', k);
+    for (const [j, x] of Object.entries(only)) x.setAttribute('aria-pressed', String(j === k));
+    s.keys.clear(); s.pinned = true; if (s.snap) paintChat(s.snap, false);
+  }
+  only.all.onclick = () => setFilter('all'); only.you.onclick = () => setFilter('you');
+  setFilter(s.filter);
+
+  function setTo(name) {
+    s.to = name;
+    if (toSel.value !== name) toSel.value = name;
+    box.placeholder = name === 'leader' ? 'Message the leader…' : name === 'all' ? 'Message everyone…' : 'Message ' + name + '…';
+    emit('to', name);
+  }
+  function paintSend(snap) {
+    const want = ['leader', 'all', ...snap.members.map((m) => m.name)];
+    if (toSel.dataset.sig !== want.join()) {
+      toSel.dataset.sig = want.join();
+      toSel.replaceChildren(...want.map((n) => h('option', { value: n }, who(n))));
+      if (!want.includes(s.to)) s.to = 'leader';
+      setTo(s.to);
+    }
+    const off = viewOnly() || !snap.team;
+    box.disabled = sendB.disabled = toSel.disabled = off;
+  }
+  toSel.onchange = () => setTo(toSel.value);
+  async function sendIt() {
+    const text = box.value.trim();
+    if (!text || sendB.disabled) return;
+    sendB.disabled = true; sendB.classList.remove('ok', 'bad'); sendB.title = '';
+    try { await post(ROUTE_BASE + 'say', { to: s.to, text }); box.value = ''; sendB.classList.add('ok'); }
+    catch (e) { sendB.classList.add('bad'); sendB.title = String(e.message || e); }
+    sendB.disabled = false; setTimeout(() => sendB.classList.remove('ok', 'bad'), 1800);
+  }
+  sendB.onclick = sendIt;
+  box.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendIt(); } };
+
+  function needRow(r) {
+    const perm = r.kind === 'perm', what = perm ? (r.tool && r.tool !== 'Bash' ? r.tool + ' ' : '') + (Object.values(r.fields || {})[0] || r.tool) : r.gist || r.text;
+    const ageEl = h('span', { class: 'age' }), row = h('div', { class: 'as-need' + (s.open.has(r.id) ? ' open' : ''), 'data-id': r.id, style: `--mc:${mcolor(r.member)}` });
+    const top = h('button', { type: 'button', 'aria-expanded': String(s.open.has(r.id)), title: (perm ? 'Asks to run' : 'Asks') + ', ' + r.id }, mini(r.member, 1.5),
+      h('span', { class: 'mid' }, h('span', { class: 'hd' }, h('span', { class: 'ic' }, icon(perm ? 'hand' : 'question')), h('b', {}, r.member), ageEl),
+        h('span', { class: 'what' }, ell(what, 90))),
+      h('span', { class: 'chev' }, icon('chev')));
+    const act = h('div', { class: 'act', hidden: s.open.has(r.id) ? null : '' });
+    const lock = (on_) => { for (const b of act.querySelectorAll('button,input')) b.disabled = on_; };
+    const done = (p) => { lock(true); p.catch((e) => { act.append(h('p', {}, String(e.message || e))); lock(false); }); };
+    if (perm) {
+      const allow = h('button', { type: 'button', class: 'lv-btn primary' }, icon('check'), 'Allow'), deny = h('button', { type: 'button', class: 'lv-btn' }, icon('x'), 'Deny');
+      allow.onclick = () => done(post('/api/answer', { id: r.id, allow: true }));
+      deny.onclick = () => done(post('/api/answer', { id: r.id, allow: false }));
+      act.append(h('code', {}, what), h('div', { class: 'acts' }, allow, deny));
+    } else {
+      const acts = h('div', { class: 'acts' });
+      (r.options || []).forEach((o, i) => { const b = h('button', { type: 'button', class: 'lv-btn' }, o); b.onclick = () => done(post('/api/answer', { id: r.id, option: i })); acts.append(b); });
+      const inp = h('input', { placeholder: 'Your answer', 'aria-label': 'Your answer' }), b = h('button', { type: 'button', class: 'lv-btn primary' }, 'Answer');
+      const go = () => { if (inp.value.trim()) done(post('/api/answer', { id: r.id, text: inp.value.trim() })); };
+      b.onclick = go; inp.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+      acts.append(inp, b);
+      act.append(...[r.text && r.text !== what ? h('p', {}, r.text) : null, acts].filter(Boolean));
+    }
+    top.onclick = () => {
+      const open_ = act.hidden; act.hidden = !open_; row.classList.toggle('open', open_); top.setAttribute('aria-expanded', String(open_));
+      if (open_) s.open.add(r.id); else s.open.delete(r.id);
+    };
+    lock(viewOnly());
+    row.append(top, act); row.ageEl = ageEl; row.req = r;
+    return row;
+  }
+  function paintNeeds(snap) {
+    const reqs = [...snap.pending.perms.map((r) => ({ ...r, kind: 'perm' })), ...snap.pending.questions.map((r) => ({ ...r, kind: 'question' }))].sort((a, b) => b.age_s - a.age_s);
+    needCard.hidden = !reqs.length || !snap.team; setText(needN, reqs.length);
+    for (const id of [...s.open]) if (!reqs.some((r) => r.id === id)) s.open.delete(id);
+    const sig = JSON.stringify([reqs.map((r) => r.id), viewOnly()]);
+    if (sig !== s.needSig) { s.needSig = sig; needList.replaceChildren(...reqs.map(needRow)); }
+    for (const row of needList.children) { const r = reqs.find((x) => x.id === row.req.id); if (r) row.req = r; }
+    tickAges();
+  }
+  function tickAges() { for (const row of needList.children) setText(row.ageEl, age(since(row.req.age_s))); }
+  setInterval(() => { if (!needCard.hidden && !document.hidden) tickAges(); }, 1000);
+
+  function paint(fresh) {
+    const snap = s.snap;
+    if (!snap) return;
+    if (!snap.team) {
+      leadCard.hidden = needCard.hidden = true; s.keys.clear(); lines.replaceChildren(h('li', { class: 'lv-empty' }, icon('chat')));
+      box.disabled = sendB.disabled = toSel.disabled = true; return;
+    }
+    paintLead(snap); paintChat(snap, fresh); paintSend(snap); paintNeeds(snap);
+  }
+  return {
+    data(snap) { s.snap = snap; paint(true); },
+    paint, conn() {},
+    reset() { s.snap = null; s.keys.clear(); s.leadKey = ''; s.needSig = ''; },
+    setTo, get to() { return s.to; },
+    focusBox() { box.focus(); },
+    focusNeeds(member) {
+      if (needCard.hidden) return;
+      needCard.scrollIntoView({ block: 'nearest', behavior: still() ? 'auto' : 'smooth' });
+      const first = [...needList.children].find((row) => !member || row.req.member === member) || needList.firstElementChild;
+      if (first && !first.classList.contains('open')) first.firstElementChild.click();
+      if (first && !still()) { first.classList.remove('flash'); void first.offsetWidth; first.classList.add('flash'); }
+    },
+  };
+})();
+
+const views = {};
+
+views.call = (() => {
+  const el = h('section', { class: 'lv-view', id: 'lv-call', 'aria-label': 'Team call', hidden: '' });
+  const stage = { el: h('section', { class: 'cl-stage', 'aria-live': 'polite', 'aria-label': 'On stage' }), scene: h('div', { class: 'cl-scene' }), holder: h('div'),
+    rings: h('div', { class: 'rings' }, h('i'), h('i'), h('i')), route: h('div', { class: 'cl-route' }), kind: h('span', { class: 'cl-kind', hidden: '' }),
+    say: h('p', { class: 'cl-say' }), screen: h('div', { class: 'cl-screen' }), big: new Map(), now: null, size: 0, shared: '' };
+  stage.scene.append(stage.holder, stage.rings);
+  stage.el.append(stage.scene, h('div', { class: 'cl-cap' }, stage.route, stage.say), stage.screen);
+  const wires = sv('svg', { class: 'cl-wires', 'aria-hidden': 'true' });
+  const topRow = h('div', { class: 'cl-top' }), boardEl = h('div', { class: 'cl-board', role: 'list', 'aria-label': 'The blackboard' }), crew = h('div', { class: 'cl-crew' });
+  const room = h('section', { class: 'cl-room', 'aria-label': 'The team' }, wires, topRow, boardEl, crew);
+  const stageCard = h('div', { class: 'lv-card clip', hidden: '' }, stage.el), roomCard = h('div', { class: 'lv-card', hidden: '' }, room);
+  const fxl = makeFx(el);
+  const nobody = h('div', { class: 'lv-card lv-empty', hidden: '' }, icon('users'));
+  el.append(nobody, stageCard, roomCard, fxl.el);
+  mainCol.append(el);
+
+  const s = { snap: null, tiles: new Map(), chips: new Map(), queue: [], timer: 0, lastSummary: null, edits: new Map(), spokeDone: new Map(), shots: new Map(), compact: null, wiresSig: '' };
+  const member = memberOf;
+
+  function tile(name) {
+    let t = s.tiles.get(name);
+    if (t) return t;
+    const kind = name === 'user' ? 'you' : name === 'leader' ? 'lead' : 'crew', compact = kind === 'crew' && s.compact;
+    const desk = new Desk({ kind: kindOf(name), color: mcolor(name), size: 2, compact });
+    t = { name, desk, eq: h('span', { class: 'cl-eq', style: `--c:${mcolor(name)}` }, h('i'), h('i'), h('i')), bar: bar('thin'), away: null };
+    t.stand = h('div', { class: 'stand' }, desk.el);
+    const hand = h('button', { type: 'button', class: 'hand', title: 'Open its request', 'aria-label': 'Open its request' }, icon('hand'));
+    hand.onclick = (e) => { e.stopPropagation(); aside.focusNeeds(name); };
+    t.el = h('div', { class: 'cl-tile ' + kind, role: 'button', tabindex: '0', title: who(name) },
+      hand, t.stand, h('span', { class: 'nm' }, h('i'), h('span', {}, who(name)), t.eq), t.bar.el);
+    const pick = () => { if (name === 'user') return; if (kind === 'crew') openMember(name, t.el); else { aside.setTo('leader'); aside.focusBox(); } };
+    t.el.onclick = pick; t.el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+    s.tiles.set(name, t);
+    return t;
+  }
+  const lastDone = (snap, name) => { const d = snap.tasks.filter((x) => x.owner === name && x.state === 'done'); return d.length ? d[d.length - 1].id : null; };
+  function paintRoom(snap) {
+    const n = snap.members.length, compact = n > 12;
+    if (compact !== s.compact) { for (const [k, t] of s.tiles) if (k !== 'user' && k !== 'leader') { t.el.remove(); s.tiles.delete(k); } s.compact = compact; }
+    crew.classList.toggle('compact', compact);
+    crew.style.setProperty('--tw', n <= 6 ? '150px' : n <= 12 ? '128px' : '84px');
+    const you = tile('user'), lead = tile('leader');
+    if (you.el.parentNode !== topRow) topRow.append(you.el, lead.el);
+    you.desk.dress(st.avatar);
+    snap.members.forEach((m, i) => place(crew, tile(m.name).el, i));
+    for (const [k, t] of s.tiles) if (k !== 'user' && k !== 'leader' && !snap.members.some((m) => m.name === k)) { t.el.remove(); s.tiles.delete(k); }
+    const asks = asking(snap);
+    for (const m of snap.members) {
+      const t = tile(m.name), away = m.state === 'waiting' || m.state === 'removed', ask = asks.has(m.name);
+      t.el.style.setProperty('--mc', mcolor(m.name));
+      if (t.away === true && !away) { t.desk.play('wave'); if (!still()) t.el.animate([{ transform: 'scale(.9)', opacity: 0.4 }, { transform: 'scale(1.06)', opacity: 1 }, { transform: 'none' }], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' }); }
+      t.away = away;
+      t.el.classList.toggle('away', away); t.el.classList.toggle('ask', ask); t.el.classList.toggle('failed', m.state === 'failed');
+      const finished = m.task == null && !ask && !away && m.state !== 'active' && lastDone(snap, m.name) != null;
+      t.el.classList.toggle('busy', m.task != null && !ask); t.el.classList.toggle('idle', !away && !ask && m.state === 'idle'); t.el.classList.toggle('done', finished);
+      t.stand.classList.toggle('work', m.task != null && !ask); t.stand.classList.toggle('ask', ask);
+      t.stand.classList.toggle('done', m.task == null && !ask && m.state !== 'active' && lastDone(snap, m.name) != null);
+      t.bar.set(finished ? 1 : (m.pct || 0) / 100, finished ? 'var(--st-done)' : mcolor(m.name));
+      const recent = s.edits.get(m.name), typing = recent && Date.now() - recent.at < 20000;
+      t.desk.set(away ? 'away' : m.state === 'failed' ? 'failed' : ask ? 'ask' : m.state === 'active' ? (m.task != null ? 'work' : 'calm') : m.state === 'starting' ? 'calm' : 'idle',
+        ask ? 'ask' : m.state === 'active' ? (m.task != null && typing ? 'code' : 'read') : 'off');
+      t.el.title = m.name + (m.task != null ? `\n${tid(m.task)} ${m.task_title || ''}` : '') + (m.role_brief ? '\n' + m.role_brief : '');
+    }
+    const asksN = snap.pending.perms.length + snap.pending.questions.length;
+    lead.desk.set('calm', asksN ? 'ask' : snap.members.some((m) => m.state === 'active') ? 'read' : 'off');
+    lead.stand.classList.toggle('ask', asksN > 0);
+    for (const t of s.tiles.values()) t.el.classList.toggle('target', t.name === aside.to && t.name !== 'leader');
+    paintBoard(snap);
+    requestAnimationFrame(drawWires);
+  }
+  function paintBoard(snap) {
+    const list = [...snap.tasks].sort((a, b) => Number(a.id) - Number(b.id) || String(a.id).localeCompare(String(b.id)));
+    const keep = list.slice(-40), seen = new Set();
+    if (!boardEl.firstChild || !boardEl.firstChild.classList.contains('lbl')) boardEl.prepend(h('span', { class: 'lbl', title: 'The blackboard' }, icon('board')));
+    keep.forEach((t, i) => {
+      let c = s.chips.get(t.id);
+      if (!c) { c = h('span', { class: 'cl-chip new', role: 'listitem' }, tid(t.id), h('i', { class: 'fill' })); c.onclick = () => openTask(t.id, c); s.chips.set(t.id, c); setTimeout(() => c.classList.remove('new'), 600); }
+      seen.add(t.id);
+      const m = t.owner ? member(t.owner) : null;
+      c.className = 'cl-chip s-' + t.state + (c.classList.contains('new') ? ' new' : '') + (c.classList.contains('flash') ? ' flash' : '');
+      c.style.setProperty('--mc', t.owner ? mcolor(t.owner) : 'var(--st-work)');
+      c.lastChild.style.width = (t.state === 'done' ? 100 : t.state === 'claimed' ? (m && m.task === t.id ? m.pct || 10 : 10) : 0) + '%';
+      c.title = `${tid(t.id)} ${t.title}` + (t.owner ? `, ${t.owner}` : '');
+      place(boardEl, c, i + 1);
+    });
+    for (const [id, c] of s.chips) if (!seen.has(id)) { c.remove(); s.chips.delete(id); }
+    boardEl.hidden = !snap.tasks.length;
+  }
+  function drawWires() {
+    if (el.hidden || !s.snap) return;
+    const R = room.getBoundingClientRect(), you = s.tiles.get('user'), lead = s.tiles.get('leader');
+    if (!you || !lead) return;
+    const rel = (node) => { const r = node.getBoundingClientRect(); return { l: r.left - R.left, t: r.top - R.top, r: r.right - R.left, b: r.bottom - R.top, cx: r.left - R.left + r.width / 2 }; };
+    const a = rel(you.el), b = rel(lead.el), sig = [a, b].map((x) => Object.values(x).map(Math.round).join()).join('|') + '|' + crew.offsetHeight + '|' + boardEl.offsetHeight + '|' + R.width;
+    if (sig === s.wiresSig) return;
+    s.wiresSig = sig;
+    wires.replaceChildren();
+    const midY = (a.t + a.b) / 2;
+    sv('path', { d: `M${a.r} ${midY} H${b.l}` }, wires);
+    const bd = boardEl.hidden ? null : rel(boardEl), cr = crew.children.length ? rel(crew) : null;
+    if (bd) sv('path', { d: `M${b.cx} ${b.b} V${bd.t}` }, wires);
+    if (cr) {
+      const from = bd ? bd.b : b.b, first = [...crew.children].filter((c) => c.offsetTop === crew.children[0].offsetTop).map(rel), busY = cr.t - 12;
+      sv('path', { d: `M${b.cx} ${from} V${busY}` }, wires);
+      if (first.length > 1) sv('path', { d: `M${first[0].cx} ${busY} H${first[first.length - 1].cx}` }, wires);
+      for (const f of first) sv('path', { d: `M${f.cx} ${busY} V${f.t}` }, wires);
+    }
+  }
+  new ResizeObserver(() => { s.wiresSig = ''; requestAnimationFrame(drawWires); }).observe(room);
+  on('to', (name) => { for (const t of s.tiles.values()) t.el.classList.toggle('target', t.name === name && name !== 'leader'); });
+
+  function hold(text = '') {
+    const read = clamp(1400 + String(text).length * 32, 1900, 4600) / Math.max(1, st.rate / 8);
+    return Math.max(800, read * (s.queue.length > 2 ? 0.4 : s.queue.length > 1 ? 0.55 : s.queue.length ? 0.75 : 1));
+  }
+  function speak(item) {
+    const last = s.queue[s.queue.length - 1];
+    if (item.kind === 'post' && last && last.kind === 'post' && !!last.chain === !!item.chain) {
+      last.n = (last.n || 1) + 1; last.text += '\n' + item.text; last.word = last.n + ' new tasks'; return;
+    }
+    if (!item.must && s.queue.length >= 2) return;
+    s.queue.push(item);
+    if (s.queue.length > 6) { const i = s.queue.findIndex((x) => !x.must); s.queue.splice(i >= 0 ? i : 0, 1); }
+    if (!s.timer) nextLine();
+  }
+  function bigDesk(name) {
+    const size = clamp(Math.floor((stage.el.clientHeight - 40) / DH), 3, 5);
+    if (size !== stage.size) { stage.size = size; stage.big.clear(); }
+    let d = stage.big.get(name);
+    if (!d) { d = new Desk({ kind: kindOf(name), color: mcolor(name), size }); stage.big.set(name, d); }
+    d.dress(kindOf(name));
+    return d;
+  }
+  const pill = (name, i = 0, talking = false) => h('span', { class: 'cl-pill', style: `animation-delay:${i * 140}ms` }, h('span', { class: 'av', style: `--c:${mcolor(name)}` }, mini(name)), who(name),
+    talking ? h('span', { class: 'cl-eq', style: `--c:${mcolor(name)}` }, h('i'), h('i'), h('i')) : null);
+  let typing = 0;
+  function typeOut(node, text) {
+    cancelAnimationFrame(typing);
+    if (still()) { setText(node, text); return; }
+    const cps = Math.max(30, text.length / ((hold(text) * 0.4) / 1000)), t0 = performance.now(), caret = h('span', { class: 'caret' });
+    const step = (now) => {
+      const n = Math.min(text.length, Math.ceil(((now - t0) / 1000) * cps));
+      node.textContent = text.slice(0, n); if (n < text.length) { node.append(caret); typing = requestAnimationFrame(step); }
+    };
+    typing = requestAnimationFrame(step);
+  }
+  function setKind(k, word) {
+    const def = KIND[k];
+    if (!def || !(word || def[2])) { stage.kind.hidden = true; return; }
+    stage.kind.hidden = false; stage.kind.style.setProperty('--kc', def[1]); stage.kind.title = word || def[2];
+    stage.kind.replaceChildren(icon(def[0]));
+  }
+  function showLine(it) {
+    const d = bigDesk(it.from);
+    if (stage.holder.firstChild !== d.el) {
+      stage.holder.replaceChildren(d.el);
+      if (!still()) stage.holder.animate([{ opacity: 0, transform: 'translateY(12px) scale(.92)' }, { opacity: 1, transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    }
+    const m = member(it.from);
+    d.set(m && m.state === 'failed' ? 'failed' : 'talk', it.mode || 'talk');
+    if (it.play) d.play(it.play);
+    stage.el.style.setProperty('--sc', mcolor(it.from)); stage.el.classList.add('talking');
+    setKind(it.kind, it.word);
+    stage.route.replaceChildren(stage.kind, ...(it.chain || [it.from, it.to]).flatMap((n, i) => (i ? [icon('arrow'), pill(n, i)] : [pill(n, 0, true)])));
+    stage.say.className = 'cl-say'; typeOut(stage.say, it.n || it.lines ? it.text : ell(it.text, 220));
+    for (const t of s.tiles.values()) t.el.classList.toggle('speaking', t.name === it.from);
+    share(it);
+    stage.now = it;
+  }
+  function nextLine() {
+    const it = s.queue.shift();
+    if (!it) { s.timer = 0; return; }
+    showLine(it);
+    s.timer = setTimeout(nextLine, hold(it.text));
+  }
+  function idleStage(snap) {
+    if (s.timer || stage.now) return;
+    const working = snap.members.some((m) => m.state === 'active'), d = bigDesk('leader');
+    d.set('calm', working ? 'read' : 'off');
+    if (stage.holder.firstChild !== d.el) stage.holder.replaceChildren(d.el);
+    stage.el.style.setProperty('--sc', 'var(--c-lead)'); stage.el.classList.remove('talking');
+    const sum = (snap.summaries || [])[0], said = (snap.feed || []).filter((l) => l.from === 'leader' && l.to === 'user').pop();
+    const last = sum && (!said || sum.ts >= said.ts) ? sum : said;
+    setKind(last === sum && sum ? 'summary' : null);
+    stage.route.replaceChildren(stage.kind, pill('leader'));
+    setText(stage.say, last ? last.text || last.gist || '' : ''); stage.say.className = 'cl-say quiet';
+    for (const t of s.tiles.values()) t.el.classList.remove('speaking');
+    share({ from: 'leader', kind: 'board' });
+  }
+
+  function share(it) {
+    const snap = s.snap; if (!snap) return;
+    const from = it.from, m = member(from), sig = [from, it.kind, it.id || '', m ? m.task : '', m && m.shot ? m.shot.mtime : '', (s.edits.get(from) || {}).path || '', it.kind === 'board' ? snap.tasks.map((t) => t.id + t.state + t.owner).join() : ''].join('|');
+    if (sig === stage.shared) return;
+    const fresh = stage.shared.split('|')[0] !== from;
+    stage.shared = sig;
+    const title = h('b', {}, from === 'leader' || from === 'user' ? 'The board' : from);
+    const body = h('div', { class: 'body' });
+    stage.screen.replaceChildren(h('div', { class: 'sbar' }, h('i'), h('i'), h('i'), title, h('span', { class: 'live', title: 'shared now' })), body);
+    if (fresh && !still()) { stage.screen.classList.remove('in'); void stage.screen.offsetWidth; stage.screen.classList.add('in'); }
+    if (!m) { boardScreen(body, snap); return; }
+    if (it.kind === 'perm') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-y)' }, icon('hand')), h('code', {}, it.full || it.text))); return; }
+    if (it.kind === 'question') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-y)' }, icon('question')), h('b', {}, it.text))); return; }
+    if (it.kind === 'done') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-g)' }, icon('check')), h('b', {}, it.title || ''))); return; }
+    if (m.shot && (m.shot.data || !st.actions)) { pictureScreen(body, m); return; }
+    taskScreen(body, m, snap);
+  }
+  function boardScreen(body, snap) {
+    const rank = { claimed: 0, open: 1, done: 2, cancelled: 3 }, rows = [...snap.tasks].sort((a, b) => rank[a.state] - rank[b.state] || Number(a.id) - Number(b.id)).slice(0, 9);
+    if (!rows.length) { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--scr-mute)' }, icon('board')))); return; }
+    body.append(h('div', { class: 'rows' }, ...rows.map((t) => {
+      const m = t.owner ? member(t.owner) : null, b = bar();
+      b.set(t.state === 'done' ? 1 : t.state === 'claimed' ? ((m && m.task === t.id ? m.pct : 10) || 10) / 100 : 0, t.state === 'done' ? 'var(--st-done)' : t.owner ? mcolor(t.owner) : 'var(--muted)');
+      return h('div', { class: 'trow' }, h('span', { class: 'id' }, tid(t.id)), h('span', { style: t.owner ? `color:${mcolor(t.owner)}` : '' }, t.title), b.el);
+    })));
+  }
+  function taskScreen(body, m, snap) {
+    const t = m.task != null ? snap.tasks.find((x) => String(x.id) === String(m.task)) : null;
+    if (!t) { body.append(h('div', { class: 'big' }, h('span', { style: `color:${mcolor(m.name)}` }, icon('chat')))); return; }
+    const tk = tank(22, 30); tk.set((m.pct || 0) / 100, mcolor(m.name));
+    body.append(h('div', { class: 'task' }, tk.el, h('b', {}, tid(t.id) + ' ' + t.title)));
+    const last = s.edits.get(m.name), files = [...new Set([...(last ? [last.path] : []), ...(t.scope || [])])].slice(0, 5);
+    if (files.length) body.append(h('div', { class: 'files' }, ...files.map((p) => h('div', { class: 'file' + (last && p === last.path ? ' hot' : '') }, icon('file'), p))));
+    const colors = ['var(--dot-r)', 'var(--dot-y)', 'var(--scr-pick)', 'var(--dot-g)', 'var(--water-2)'];
+    body.append(h('div', { class: 'code' }, ...[62, 44, 78, 30, 54].map((w, i) => h('i', { style: `width:${w}%;--k:${colors[(i + t.id.length) % colors.length]};animation-delay:${i * 140}ms` }))));
+  }
+  function pictureScreen(body, m) {
+    const have = m.shot.data ? m.shot : s.shots.get(m.name);
+    body.className = 'body shot';
+    if (have && have.mtime === m.shot.mtime) { body.append(h('img', { src: have.data, alt: m.name + "'s screen" })); return; }
+    body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--scr-mute)' }, icon('monitor'))));
+    getJSON(ROUTE_BASE + 'shot?m=' + encodeURIComponent(m.name)).then((j) => {
+      s.shots.set(m.name, { mtime: j.mtime, data: j.data });
+      if (stage.now && stage.now.from === m.name) { stage.shared = ''; share(stage.now); }
+    }).catch(() => { s.shots.set(m.name, { mtime: m.shot.mtime, data: '' }); });
+  }
+
+  function nodeOf(name) {
+    if (name === 'all' || name === 'board') return boardEl.hidden ? crew : boardEl;
+    if (String(name).startsWith('#')) return s.chips.get(name.slice(1)) || boardEl;
+    const t = s.tiles.get(name); return t ? t.el : null;
+  }
+  const fly = (from, to, kind, color, delay) => fxl.fly(nodeOf(from), nodeOf(to), kind, color, delay);
+
+  const plain = (n) => (n === 'board' ? 'all' : String(n || '').replace(/^m:/, ''));
+  function onEvent(ev) {
+    const from = plain(ev.from), to = plain(ev.to), m = ev.member, t = (n) => s.tiles.get(n), re = !!ev.re;
+    const short = ev.gist || ev.text || ev.label;
+    switch (ev.kind) {
+      case 'post':
+        if (re) fly('user', 'leader', 'say', 'var(--c-you)');
+        fly('leader', 'board', 'post', 'var(--g-flow)', re ? 450 : 0);
+        speak({ kind: 'post', from: 'leader', to: 'all', word: re ? 'Passing on your words' : 'New task', text: tid(ev.task) + ' ' + (ev.title || ''), must: re, chain: re ? ['user', 'leader', 'all'] : null });
+        break;
+      case 'claim':
+        fly('#' + ev.task, m, 'post', mcolor(m));
+        if (t(m)) t(m).desk.play('look');
+        break;
+      case 'done': {
+        if (!m) break;
+        fly(m, '#' + ev.task, 'done', 'var(--st-done)');
+        if (t(m)) { t(m).desk.play('done'); const p = fxl.centreOf(t(m).el); setTimeout(() => fxl.burst(p, mcolor(m)), 200); }
+        const chip = s.chips.get(String(ev.task));
+        if (chip) setTimeout(() => { chip.classList.remove('flash'); void chip.offsetWidth; chip.style.setProperty('--hit', 'var(--st-done)'); chip.classList.add('flash'); }, 900);
+        setTimeout(() => {
+          if (saidDone(m, ev.task)) return;
+          markDone(m, ev.task);
+          speak({ from: m, to: 'leader', kind: 'done', text: ev.gist || tid(ev.task) + ' ' + (ev.title || ''), title: tid(ev.task) + ' ' + (ev.title || ''), mode: 'done', play: 'done' });
+        }, 2500);
+        break;
+      }
+      case 'mail': {
+        const kind = ev.report && ev.report !== 'fyi' ? ev.report : 'mail';
+        if (re) { fly('user', 'leader', 'say', 'var(--c-you)'); fly(from, to, 'mail', 'var(--g-mail)', 450); } else fly(from, to, from === 'user' ? 'say' : 'mail', from === 'user' ? 'var(--c-you)' : KIND[kind] ? KIND[kind][1] : 'var(--g-mail)');
+        if (t(to)) setTimeout(() => t(to) && t(to).desk.play('mail'), 900);
+        if (kind === 'done') markDone(from, ev.on);
+        speak({ from, to, kind, word: re ? 'Passing on your words' : null, text: short, full: ev.text, title: ev.on != null ? tid(ev.on) : '',
+          must: re || from === 'user' || to === 'user' || kind === 'blocker' || kind === 'done', chain: re ? ['user', 'leader', to] : null, mode: kind === 'done' ? 'done' : 'talk',
+          play: kind === 'done' ? 'done' : null });
+        break;
+      }
+      case 'perm': case 'question':
+        if (ev.state === 'pending') {
+          fly(m, 'leader', 'ask', 'var(--warn)');
+          speak({ from: m, to: 'leader', kind: ev.kind, text: ev.kind === 'question' ? short : ell(ev.brief || '', 120), full: ev.brief, id: ev.id, must: ev.kind === 'question', mode: 'ask' });
+        } else {
+          const by = ev.by === 'user' ? 'user' : 'leader';
+          fly(by, m, 'say', 'var(--warn)');
+          if (by === 'user' || ev.kind === 'question') speak({ from: by, to: m, kind: ev.state, text: ev.answer || ev.brief || '', must: true });
+        }
+        break;
+      case 'edit': case 'note': {
+        const w = m || ev.by;
+        if (w) { s.edits.set(w, { path: base(ev.path || ev.name), at: Date.now() }); if (t(w)) t(w).desk.play('type'); if (stage.now && stage.now.from === w) share(stage.now); }
+        break;
+      }
+      case 'member_state':
+        if (ev.state === 'starting' && t(ev.name)) t(ev.name).desk.play('wave');
+        break;
+      default: break;
+    }
+  }
+  function markDone(name, task) { if (task != null) s.spokeDone.set(name + '|' + task, Date.now()); }
+  function saidDone(name, task) {
+    const at = s.spokeDone.get(name + '|' + task);
+    return !!at && Date.now() - at < 180000;
+  }
+  on('avatar', () => { const you = s.tiles.get('user'); if (you) you.desk.dress(st.avatar); stage.big.delete('user'); });
+
+  function paint(fresh) {
+    const snap = s.snap;
+    if (!snap || el.hidden) return;
+    nobody.hidden = !!snap.team; stageCard.hidden = roomCard.hidden = !snap.team;
+    if (!snap.team) return;
+    paintRoom(snap); idleStage(snap);
+    if (!stage.now && !s.timer) share({ from: 'leader', kind: 'board' });
+    const x = (snap.summaries || [])[0];
+    if (s.lastSummary === null) s.lastSummary = x ? x.ts : 0;
+    else if (x && x.ts !== s.lastSummary) {
+      const said = [x.text, (x.decide || []).join(', ')].filter(Boolean).join('\n');
+      if (fresh) speak({ from: 'leader', to: 'user', kind: 'summary', text: said, must: true, lines: true });
+      s.lastSummary = x.ts;
+    }
+  }
+  setInterval(() => {
+    if (el.hidden || document.hidden) return;
+    if (!s.timer && s.queue.length === 0 && stage.now && s.snap) { stage.now = null; idleStage(s.snap); }
+  }, 400);
+  return {
+    el,
+    data(snap, events, reset) {
+      if (reset) { s.queue.length = 0; clearTimeout(s.timer); s.timer = 0; stage.now = null; }
+      s.snap = snap;
+      paint(true);
+      if (!el.hidden && !document.hidden) for (const ev of events) onEvent(ev);
+    },
+    paint, conn() {},
+    reset() { s.snap = null; s.lastSummary = null; s.queue.length = 0; clearTimeout(s.timer); s.timer = 0; stage.now = null; stage.shared = ''; },
+    openCard: openMember, openTask,
+  };
+})();
+
+views.monitor = (() => {
+  const el = h('section', { class: 'lv-view', id: 'lv-mon', 'aria-label': 'Monitor', hidden: '' });
+  const stack = { done: h('i', { class: 'd' }), work: h('i', { class: 'w' }), open: h('i', { class: 'p' }) };
+  const stackEl = h('span', { class: 'mo-stack' }, stack.done, stack.work, stack.open);
+  const overlaps = h('b', { class: 'n', hidden: '' });
+  const foldB = h('button', { type: 'button', class: 'lv-iconb', 'aria-expanded': 'false', title: 'Who may write where' }, icon('folder'), overlaps);
+  const folders = h('div', { class: 'mo-folders', hidden: '' });
+  const wires = sv('svg', { class: 'mo-wires', 'aria-hidden': 'true' });
+  const youFig = new Figure({ kind: st.avatar, size: 2, state: 'calm' });
+  const userCard = h('div', { class: 'mo-user', role: 'button', tabindex: '0', title: 'Write to the leader' }, youFig.el, h('b', {}, 'You'));
+  const leadDesk = new Desk({ kind: 'leader', color: 'var(--c-lead)', size: 2 });
+  const leadStand = h('div', { class: 'stand' }, leadDesk.el);
+  const needPill = h('button', { type: 'button', class: 'raise big', hidden: '' }, icon('hand'), h('b'));
+  const leadEl = h('div', { class: 'mo-lead', role: 'button', tabindex: '0', title: 'Write to the leader' }, leadStand, h('b', {}, 'Leader'), needPill);
+  const bbBar = bar('thin'), bbEl = h('div', { class: 'mo-bb', role: 'button', tabindex: '0', title: 'The tasks' }, icon('board'), h('span', {}, 'Blackboard'), bbBar.el);
+  const crewEl = h('div', { class: 'mo-crew' });
+  const net = h('div', { class: 'mo-net' }, wires, userCard, leadEl, bbEl, crewEl);
+  const tbody = h('tbody');
+  const tbl = h('div', { class: 'mo-tbl' }, h('header', {}, h('h3', {}, 'Blackboard')),
+    h('table', {}, h('thead', {}, h('tr', {}, h('th', { 'aria-label': 'Open' }), h('th', {}, '#'), h('th', {}, 'Task'), h('th', {}, 'Owner'), h('th', {}, 'State'), h('th', { class: 'hide-narrow' }, 'Scope'), h('th', {}, 'Waiting'))), tbody));
+  const card = h('div', { class: 'lv-card', hidden: '' },
+    h('div', { class: 'lv-card-head' }, h('h2', {}, 'Network ', h('span', { class: 'sl' }, '/'), ' Blackboard'), stackEl, h('span', { class: 'lv-end' }, foldB)),
+    folders, net, tbl);
+  const panes = h('div', { class: 'lv-card mo-panes', hidden: '' });
+  const fxl = makeFx(el);
+  const nobody = h('div', { class: 'lv-card lv-empty', hidden: '' }, icon('graph'));
+  el.append(nobody, card, panes, fxl.el);
+  mainCol.append(el);
+
+  const s = { snap: null, tiles: new Map(), rows: new Map(), open: new Set(), log: [], wiresSig: '', costs: new Map(), size: 0 };
+  const toLeader = () => { aside.setTo('leader'); aside.focusBox(); };
+  userCard.onclick = toLeader; leadEl.onclick = (e) => { if (!needPill.contains(e.target)) toLeader(); };
+  needPill.onclick = () => aside.focusNeeds();
+  bbEl.onclick = () => tbl.scrollIntoView({ block: 'nearest', behavior: still() ? 'auto' : 'smooth' });
+  for (const n of [userCard, leadEl, bbEl]) n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); n.click(); } };
+  foldB.onclick = () => { folders.hidden = !folders.hidden; foldB.setAttribute('aria-expanded', String(!folders.hidden)); store.set('deepcrew-monitor-files', folders.hidden ? '' : '1'); s.wiresSig = ''; };
+  if (store.get('deepcrew-monitor-files') === '1') { folders.hidden = false; foldB.setAttribute('aria-expanded', 'true'); }
+
+  function pane(title) {
+    const metaEl = h('span', { class: 'lv-meta' }), body = h('div', { class: 'body', hidden: '' });
+    const b = h('button', { type: 'button', 'aria-expanded': 'false' }, icon('chev'), h('b', {}, title), metaEl);
+    const p = h('section', { class: 'mo-pane', 'aria-label': title }, b, body), key = 'deepcrew-pane-' + title.toLowerCase();
+    const set = (open_) => { body.hidden = !open_; b.setAttribute('aria-expanded', String(open_)); };
+    b.onclick = () => { set(body.hidden); store.set(key, body.hidden ? '' : '1'); };
+    set(store.get(key) === '1');
+    panes.append(p);
+    return { el: p, meta: metaEl, body };
+  }
+  const act = pane('Activity'), dec = pane('Decisions'), cost = pane('Cost');
+  const logEl = h('ol', { class: 'mo-log' }), decEl = h('ol', { class: 'mo-log' }), costEl = h('ul', { class: 'mo-costs' }), costTank = tank(12, 16);
+  act.body.append(logEl); dec.body.append(decEl); cost.body.append(costEl);
+
+  const FIG_STATE = { active: 'work', starting: 'calm', idle: 'idle', failed: 'failed', waiting: 'away', removed: 'away' };
+  function tileOf(name) {
+    let t = s.tiles.get(name);
+    if (t) return t;
+    const fig = new DiverFig({ color: mcolor(name), size: s.size, state: 'calm' });
+    const raise = h('button', { type: 'button', class: 'raise', hidden: '', 'aria-label': 'Open its request' }, icon('hand'));
+    raise.onclick = (e) => { e.stopPropagation(); aside.focusNeeds(name); };
+    t = { fig, raise, bar: bar('thin'), stand: h('div', { class: 'stand', style: `--fw:${s.size * 22}px` }, h('i', { class: 'floor' }), fig.el) };
+    t.el = h('div', { class: 'mo-m', role: 'button', tabindex: '0', 'data-name': name }, raise, t.stand, h('span', { class: 'nm' }, h('i'), h('span', {}, name)), t.bar.el);
+    t.el.onclick = () => { fig.play('look'); openMember(name, t.el); emit('pick', { kind: 'member', id: name }); };
+    t.el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); t.el.onclick(); } };
+    s.tiles.set(name, t);
+    return t;
+  }
+  function paintCrew(snap) {
+    const size = snap.members.length > 12 ? 2 : 3;
+    stackNet();
+    if (size !== s.size) { for (const t of s.tiles.values()) t.el.remove(); s.tiles.clear(); s.size = size; }
+    const asks = requests(snap), byId = new Map(snap.tasks.map((t) => [String(t.id), t]));
+    snap.members.forEach((m, i) => place(crewEl, tileOf(m.name).el, i));
+    for (const [k, t] of s.tiles) if (!snap.members.some((m) => m.name === k)) { t.el.remove(); s.tiles.delete(k); }
+    for (const m of snap.members) {
+      const t = tileOf(m.name), req = asks.get(m.name), ask = !!req, away = m.state === 'waiting' || m.state === 'removed', failed = !!m.error || m.state === 'failed';
+      const done = m.task == null && !ask ? snap.tasks.filter((x) => x.owner === m.name && x.state === 'done').pop() : null;
+      const working = !ask && !failed && !away && (m.task != null || m.state === 'active' || m.state === 'starting');
+      t.el.style.setProperty('--mc', mcolor(m.name));
+      t.el.classList.toggle('ask', ask); t.el.classList.toggle('away', away); t.el.classList.toggle('bad', failed);
+      t.el.classList.toggle('on', working); t.el.classList.toggle('off', !working && !ask && !failed);
+      t.stand.classList.toggle('work', m.task != null && !ask); t.stand.classList.toggle('ask', ask); t.stand.classList.toggle('done', !!done && m.state !== 'active');
+      t.fig.set(failed ? 'failed' : ask ? 'ask' : m.state === 'active' ? (m.task != null ? 'work' : 'calm') : FIG_STATE[m.state] || 'calm');
+      t.raise.hidden = !ask;
+      t.bar.set(m.task != null ? (m.pct || 10) / 100 : done && m.state !== 'active' ? 1 : 0, m.task == null && done ? 'var(--st-done)' : mcolor(m.name));
+      const task = m.task != null ? byId.get(String(m.task)) : done;
+      const doing = failed ? 'failed' : ask ? (req.kind === 'perm' ? 'asks to run something' : 'asks a question') : away ? 'away' : working ? 'at work' : done ? 'done' : 'resting';
+      t.el.title = `${m.name}, ${doing}` + (task ? `\n${tid(task.id)} ${task.title}` : '') + (m.role_brief ? '\n' + m.role_brief : '');
+    }
+    const n = snap.pending.perms.length + snap.pending.questions.length;
+    needPill.hidden = !n; setText(needPill.lastChild, n); needPill.title = `${n} waiting for you`;
+    leadDesk.set('calm', n ? 'ask' : snap.members.some((m) => m.state === 'active') ? 'read' : 'off');
+    leadStand.classList.toggle('ask', n > 0);
+    const c = snap.counts, total = c.open + c.claimed + c.done;
+    bbBar.set(total ? c.done / total : 0, 'var(--st-done)');
+    requestAnimationFrame(drawWires);
+  }
+  const stackNet = () => net.classList.toggle('stack', !!(s.snap && s.snap.members) && (s.snap.members.length > 6 || net.clientWidth < 900));
+  function drawWires() {
+    if (el.hidden || !s.snap || !s.snap.team || getComputedStyle(wires).display === 'none') return;
+    const N = net.getBoundingClientRect(), tiles = [...crewEl.children], P = s.paths = { ul: [], lb: [], trunk: [], rows: [], drops: new Map(), rowOf: new Map() };
+    const rel = (node) => { const r = node.getBoundingClientRect(); return { l: r.left - N.left, t: r.top - N.top, r: r.right - N.left, b: r.bottom - N.top, cx: r.left - N.left + r.width / 2, cy: r.top - N.top + r.height / 2 }; };
+    const at = [userCard, leadStand, bbEl, ...tiles].map(rel), sig = Math.round(N.width) + 'x' + Math.round(N.height) + '|' + at.map((x) => Math.round(x.l) + ',' + Math.round(x.t)).join(';');
+    if (sig === s.wiresSig) return;
+    s.wiresSig = sig;
+    wires.replaceChildren();
+    const line = (d) => sv('path', { d }, wires);
+    const tip = (x, y, down) => sv('path', { class: 'head', d: down ? `M${x} ${y} l-4.5 -7 h9 z` : `M${x} ${y} l-7 -4.5 v9 z` }, wires);
+    const [u, ld, bb, ...ts] = at;
+    const elbow = (a, b) => { const mx = (a.r + b.l) / 2; return [line(`M${a.r + 4} ${a.cy} H${mx} V${b.cy} H${b.l - 6}`), tip(b.l - 2, b.cy, false)]; };
+    P.ul = elbow(u, ld); P.lb = elbow(ld, bb);
+    ts.forEach((r, i) => { r.name = tiles[i].dataset.name; });
+    if (!ts.length) return;
+    const rows = [];
+    for (const r of ts) { const row = rows.find((x) => Math.abs(x.t - r.t) < 8); if (row) row.items.push(r); else rows.push({ t: r.t, items: [r] }); }
+    const stack = net.classList.contains('stack'), ys = rows.map((row) => row.t - 10);
+    const busX = stack ? Math.min(...ts.map((r) => r.l)) - 14 : bb.r + Math.max(10, (ts[0].l - bb.r) / 2);
+    if (stack) { P.trunk.push(line(`M${bb.cx} ${bb.b + 2} V${ys[0]}`)); if (rows.length > 1) P.trunk.push(line(`M${busX} ${ys[0]} V${ys[ys.length - 1]}`)); }
+    else P.trunk.push(line(`M${bb.r + 4} ${bb.cy} H${busX}`), line(`M${busX} ${Math.min(bb.cy, ys[0])} V${Math.max(bb.cy, ys[ys.length - 1])}`));
+    rows.forEach((row, i) => {
+      const xs = row.items.map((r) => r.cx), from = stack && rows.length === 1 ? Math.min(xs[0], bb.cx) : busX, to = Math.max(xs[xs.length - 1], stack && !i ? bb.cx : -1e9);
+      P.rows[i] = line(`M${from} ${ys[i]} H${to}`);
+      for (const r of row.items) { P.drops.set(r.name, [line(`M${r.cx} ${ys[i]} V${r.t - 1}`), tip(r.cx, r.t + 3, true)]); P.rowOf.set(r.name, i); }
+    });
+  }
+  function lightWires(from, to, color) {
+    const P = s.paths;
+    if (!P || still()) return;
+    const name = (x) => String(x || '').replace(/^m:/, ''), crew = (x) => P.drops.has(name(x)), ends = [from, to].map((x) => (x === 'all' ? 'board' : x)), list = [];
+    if (ends.includes('user')) list.push(...P.ul, ...(ends.includes('leader') ? [] : P.lb));
+    if (ends.includes('leader') && ends.some((x) => x === 'board' || crew(x))) list.push(...P.lb);
+    for (const x of ends) if (crew(x)) list.push(...P.trunk, P.rows[P.rowOf.get(name(x))], ...P.drops.get(name(x)));
+    for (const p of list) {
+      if (!p) continue;
+      p.style.setProperty('--hot', color); p.classList.add('hot');
+      clearTimeout(p.hotTimer); p.hotTimer = setTimeout(() => p.classList.remove('hot'), 1400);
+    }
+  }
+  new ResizeObserver(() => { stackNet(); s.wiresSig = ''; requestAnimationFrame(drawWires); }).observe(net);
+
+  const STATE = { open: 'Pending', claimed: 'Working', done: 'Done', cancelled: 'Cancelled' };
+  function rowOf(t) {
+    let r = s.rows.get(t.id);
+    if (r) return r;
+    r = { tr: h('tr', { class: 'tk' }), more: h('tr', { class: 'more', hidden: '' }, h('td', { colspan: '7' })) };
+    r.tr.onclick = () => { const open_ = r.more.hidden; r.more.hidden = !open_; r.tr.classList.toggle('open', open_); if (open_) s.open.add(t.id); else s.open.delete(t.id); emit('pick', { kind: 'task', id: t.id }); };
+    s.rows.set(t.id, r);
+    return r;
+  }
+  function paintTable(snap) {
+    const byId = new Map(snap.tasks.map((t) => [String(t.id), t])), byName = new Map(snap.members.map((m) => [m.name, m])), reqs = requests(snap);
+    const list = [...snap.tasks].sort((a, b) => Number(a.id) - Number(b.id) || String(a.id).localeCompare(String(b.id)));
+    const seen = new Set(), kids = [];
+    for (const t of list) {
+      const r = rowOf(t), m = t.owner ? byName.get(t.owner) : null;
+      seen.add(t.id);
+      const ask = m && String(m.task) === String(t.id) ? reqs.get(m.name) || null : null, deps = (t.deps || []).filter((d) => byId.has(String(d)) && byId.get(String(d)).state !== 'done');
+      const sig = JSON.stringify([t.title, t.state, t.owner, t.scope, deps, ask && ask.kind, t.waiting && t.waiting.what, t.description, t.summary, mcolor(t.owner || '')]);
+      if (r.sig !== sig) {
+        r.sig = sig;
+        r.ageEl = ask ? h('span', { class: 'age' }) : null;
+        const wait = ask ? h('span', { class: 'mo-wait' }, h('span', { class: 'alert', title: ask.kind === 'perm' ? 'Waits for approval' : 'Waits for an answer' }, icon('risk')), r.ageEl)
+          : deps.length ? h('span', { class: 'mo-wait' }, ...deps.map((d) => h('span', { class: 'dep' }, tid(d))))
+            : t.waiting ? h('span', { class: 'mo-wait', title: t.waiting.what }, ell(t.waiting.what, 40)) : '—';
+        r.tr.className = 'tk' + (s.open.has(t.id) ? ' open' : '') + (r.tr.classList.contains('flash') ? ' flash' : '');
+        r.tr.style.setProperty('--mc', t.owner ? mcolor(t.owner) : 'var(--muted)');
+        r.tr.replaceChildren(h('td', { class: 'ex' }, icon('chev')), h('td', { class: 'num' }, t.id), h('td', { class: 'ttl' }, t.title),
+          h('td', {}, t.owner ? h('span', { class: 'own' }, h('i'), t.owner) : '—'), h('td', {}, h('span', { class: 'mo-state s-' + t.state }, h('i'), STATE[t.state] || t.state)),
+          h('td', { class: 'scope', title: (t.scope || []).join('\n') }, (t.scope || []).join(', ') || '—'), h('td', {}, wait));
+        const said = [t.description, t.summary ? 'Done: ' + t.summary : '', (t.blocks || []).length ? 'Holds up ' + t.blocks.map(tid).join(', ') : ''].filter(Boolean).join('\n');
+        r.more.firstChild.replaceChildren(said || t.title);
+      }
+      r.ageS = ask ? ask.age_s : null;
+      if (r.ageEl) setText(r.ageEl, age(since(r.ageS)));
+      r.more.hidden = !s.open.has(t.id);
+      kids.push(r.tr, r.more);
+    }
+    for (const [id, r] of s.rows) if (!seen.has(id)) { s.rows.delete(id); s.open.delete(id); }
+    if (kids.length !== tbody.children.length || kids.some((e, i) => tbody.children[i] !== e)) tbody.replaceChildren(...kids);
+  }
+  setInterval(() => { if (!el.hidden && !document.hidden) for (const r of s.rows.values()) if (r.ageEl) setText(r.ageEl, age(since(r.ageS))); }, 1000);
+  function flashRow(id, color) {
+    const r = s.rows.get(String(id)); if (!r || still()) return;
+    r.tr.style.setProperty('--hit', color); r.tr.classList.remove('flash'); void r.tr.offsetWidth; r.tr.classList.add('flash');
+    clearTimeout(r.flashTimer); r.flashTimer = setTimeout(() => r.tr.classList.remove('flash'), 2000);
+  }
+
+  function paintFolders(snap) {
+    const bad = new Set(snap.conflicts.map((x) => x.path));
+    overlaps.hidden = !snap.conflicts.length; setText(overlaps, snap.conflicts.length); foldB.classList.toggle('bad', snap.conflicts.length > 0);
+    foldB.title = ['Who may write where', ...snap.conflicts.map((x) => (x.task ? tid(x.task) + ' ' : '') + x.path + ': ' + x.reason)].join('\n');
+    const sig = JSON.stringify([snap.members.map((m) => [m.name, m.region]), [...bad]]);
+    if (folders.dataset.sig === sig) return;
+    folders.dataset.sig = sig;
+    folders.replaceChildren(...snap.members.map((m) => h('div', { style: `--mc:${mcolor(m.name)}` }, h('b', {}, m.name),
+      ...[...(m.region.length ? m.region : []), `notes/${m.name}-*`, `artifacts/${m.name}/`].map((p) => h('span', { class: 'lv-chip' + (bad.has(p) ? ' hot' : '') }, p)))));
+  }
+
+  const COLOUR = { post: 'var(--g-flow)', claim: 'var(--g-flow)', done: 'var(--st-done)', mail: 'var(--g-mail)', edit: 'var(--g-edit)', note: 'var(--g-edit)',
+    perm: 'var(--warn)', question: 'var(--warn)', member_state: 'var(--muted)' };
+  const node = (id) => who(String(id || '').replace(/^m:/, '').replace(/^board$/, 'all'));
+  const said = (e) => (e.kind === 'mail' && e.gist ? `${node(e.from)} → ${node(e.to)}: ${e.gist}` : e.label);
+  function paintLog() {
+    const n = s.log.length;
+    act.meta.replaceChildren(h('b', { class: 'mo-n' }, n)); act.el.title = n ? 'Latest: ' + said(s.log[0]) : '';
+    logEl.replaceChildren(...s.log.map((e) => h('li', { title: e.label }, h('i', { style: `--c:${COLOUR[e.kind] || 'var(--muted)'}` }), h('time', {}, hm(e.ts)), h('span', {}, said(e)))));
+  }
+  function paintDecisions(snap) {
+    const d = snap.decisions || [];
+    dec.meta.replaceChildren(h('b', { class: 'mo-n' }, d.length));
+    const sig = JSON.stringify(d.slice(0, 20));
+    if (decEl.dataset.sig === sig) return;
+    decEl.dataset.sig = sig;
+    decEl.replaceChildren(...d.slice(0, 20).map((x) => h('li', { title: (x.member ? x.member + ': ' : '') + (x.what || '') },
+      h('i', { style: `--c:${x.state === 'denied' || x.state === 'expired' ? 'var(--bad)' : 'var(--good)'}` }), h('time', {}, hm(x.ts)), h('span', {}, [x.by, x.what, x.state].filter(Boolean).join(': ')))));
+  }
+  function paintCost(snap) {
+    const b = snap.budget || {}, max = Math.max(1e-9, ...snap.members.map((m) => m.cost_usd || 0));
+    costTank.set(b.usd ? (b.spent || 0) / b.usd : b.spent ? 0.08 : 0);
+    cost.meta.replaceChildren(costTank.el, h('b', {}, usd(b.spent))); cost.el.title = (b.usd ? `${usd(b.spent)} of ${usd(b.usd)}` : usd(b.spent)) + (snap.provider ? ', ' + snap.provider : '');
+    costEl.classList.toggle('dense', snap.members.length > 12);
+    const seen = new Set();
+    snap.members.forEach((m, i) => {
+      let li = s.costs.get(m.name);
+      if (!li) {
+        const f = new DiverFig({ color: mcolor(m.name), size: 1, state: 'calm' }); f.el.classList.remove('fl');
+        li = h('li', { class: 'mo-cm' }, f.el, h('span', { class: 'nm' }), h('span', { class: 'v' }), bar().el);
+        li.fig = f; s.costs.set(m.name, li);
+      }
+      seen.add(m.name);
+      li.style.setProperty('--mc', mcolor(m.name));
+      const [, nm, v, b_] = li.children, u = m.usage || {};
+      nm.replaceChildren(...[m.name, u.running ? h('i', { class: 'run' }) : null].filter(Boolean)); setText(v, usd(m.cost_usd));
+      b_.firstChild.style.width = (clamp((m.cost_usd || 0) / max, 0, 1) * 100).toFixed(1) + '%';
+      li.title = `${m.name}: ${u.requests || 0} requests`;
+      li.fig.set(u.running ? 'work' : 'calm');
+      place(costEl, li, i);
+    });
+    for (const [k, li] of s.costs) if (!seen.has(k)) { li.remove(); s.costs.delete(k); }
+  }
+
+  function nodeOf(id) {
+    if (id === 'user') return userCard;
+    if (id === 'leader') return leadEl;
+    if (id === 'board' || id === 'all') return bbEl;
+    const t = s.tiles.get(String(id).replace(/^m:/, '')); return t ? t.el : null;
+  }
+  const MOVES = { claim: ['from', 'look'], done: ['from', 'done'], release: ['from', 'look'], pass: ['from', 'look'], edit: ['from', 'work'], note: ['from', 'work'], perm: ['from', 'work'],
+    question: ['from', 'work'], mail: ['to', 'mail'] };
+  function onEvents(evs) {
+    if (el.hidden || document.hidden) return;
+    evs.forEach((ev, i) => {
+      const delay = Math.min(i, 10) * 110, [end, play] = MOVES[ev.kind] || [], t = end && s.tiles.get(String(ev[end] || '').replace(/^m:/, ''));
+      if (t) setTimeout(() => t.fig.play(play), end === 'to' ? delay + 900 : delay);
+      if (ev.task != null) flashRow(ev.task, COLOUR[ev.kind] || 'var(--g-flow)');
+      if (ev.kind === 'member_state' || ev.kind === 'edit' || ev.kind === 'note' || ev.from === ev.to) return;
+      const kind = ev.kind === 'done' ? 'done' : ev.kind === 'post' || ev.kind === 'claim' ? 'post' : ev.kind === 'perm' || ev.kind === 'question' ? (ev.state === 'pending' ? 'ask' : 'say') : ev.from === 'user' ? 'say' : 'mail';
+      const color = ev.kind === 'claim' ? mcolor(String(ev.to).replace(/^m:/, '')) : COLOUR[ev.kind] || 'var(--g-mail)';
+      fxl.fly(nodeOf(ev.from), nodeOf(ev.to), kind, color, delay);
+      setTimeout(() => lightWires(ev.from, ev.to, color), delay);
+      if (ev.kind === 'done' && t) { const p = fxl.centreOf(t.el); setTimeout(() => fxl.burst(p, mcolor(ev.member)), delay + 200); }
+    });
+  }
+  on('avatar', () => youFig.dress(st.avatar));
+
+  function paint() {
+    const snap = s.snap;
+    if (!snap || el.hidden) return;
+    nobody.hidden = !!snap.team; card.hidden = panes.hidden = !snap.team;
+    if (!snap.team) return;
+    const c = snap.counts;
+    const total = Math.max(1, c.open + c.claimed + c.done);
+    stack.done.style.width = (100 * c.done / total) + '%'; stack.work.style.width = (100 * c.claimed / total) + '%'; stack.open.style.width = (100 * c.open / total) + '%';
+    stackEl.title = `${c.done} done, ${c.claimed} at work, ${c.open} waiting`;
+    paintFolders(snap); paintCrew(snap); paintTable(snap); paintDecisions(snap); paintCost(snap);
+  }
+  return {
+    el,
+    data(snap, events, reset) {
+      if (reset) s.log.length = 0;
+      s.snap = snap;
+      for (const ev of events) if (ev.label) s.log.unshift(ev);
+      s.log.splice(30);
+      paint(); if (!el.hidden) paintLog();
+      onEvents(events);
+    },
+    paint() { paint(); paintLog(); }, conn() {},
+    reset() { s.snap = null; s.log.length = 0; },
+    pane,
+  };
+})();
+
+addTab('settings', 'Settings', 'gear');
+addTab('call', 'Team Call', 'call');
+addTab('monitor', 'Monitor', 'graph');
+window.deepcrewLive = {
+  addTab, show, connect, on,
+  push(block) { onBlock(block); },
+  setActions(fn) { st.actions = fn; },
+  get snap() { return st.snap; }, get source() { return st.source; },
+  views, aside, icon, h, tank, bar, Figure, Desk,
+};
+const chosen = !!(location.hash.slice(1) || store.get('deepcrew-ui-tab'));
+let opened = false;
+on('snapshot', ({ snap }) => {
+  if (opened) return;
+  opened = true;
+  if (!snap.team && shown !== 'settings' && !location.hash.slice(1)) show('settings', true);
+  else if (snap.team && !chosen) show('call', true);
+});
+st.gen = 1;
+show(chosen ? wanted() : 'settings', true);
+stream(st.gen);
+})();
+</script>

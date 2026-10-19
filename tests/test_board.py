@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 
 from deepcrew import board as board_module
-from deepcrew.board import MAIL_KINDS, SUBDIRS, file_lock, read_json, task_list_id, view
+from deepcrew import policy
+from deepcrew.board import MAIL_KINDS, SUBDIRS, file_lock, read_json, task_list_id, view, write_json
 
 
 def raw_task(board, tid) -> dict:
@@ -48,6 +49,7 @@ def test_post_writes_claude_codes_task_file_and_validates_its_arguments(board):
     t = board.post(" Fix it ", "details", ["src//a/", "docs/", "src/a/"], [], "leader")
     assert (t["id"], t["title"], t["body"], t["scope"], t["state"], t["owner"], t["posted_by"]) == ("1", "Fix it", "details", ["docs/", "src/a/"], "open", None, "leader")
     raw = raw_task(board, "1")
+    assert time.time() - raw["metadata"].pop("posted") < 5
     assert raw == {"id": "1", "subject": "Fix it", "description": "details", "status": "pending", "blocks": [], "blockedBy": [],
                    "metadata": {"scope": ["docs/", "src/a/"], "by": "leader"}}
     version = board.version()
@@ -159,9 +161,11 @@ def test_deepcrew_writes_task_files_only_under_claude_codes_lock(board, add_memb
 
 def test_view_maps_a_task_file_to_deepcrews_fields():
     md = {"scope": ["src//a/", "docs/"], "by": "alpha", "summary": "s", "pass:beta": "no", "release:gamma": "tired", "skip:delta": "silent"}
+    md.update({"volunteer:eps": "12.5", "posted": "40.5"})
     raw = {"id": "7", "subject": "S", "description": "D", "status": "pending", "blocks": ["9"], "blockedBy": ["3", "4"], "metadata": md}
-    assert view(raw) == {"id": "7", "title": "S", "body": "D", "scope": ["docs/", "src/a/"], "deps": ["3", "4"], "state": "open", "owner": None, "summary": "s",
+    assert view(raw) == {"id": "7", "title": "S", "body": "D", "scope": ["docs/", "src/a/"], "deps": ["3", "4"], "state": "open", "owner": None, "summary": "s", "gist": None,
                          "posted_by": "alpha", "passed_by": ["beta"], "released_by": ["gamma"], "ignored_by": ["delta"], "strength": None,
+                         "volunteers": {"eps": 12.5}, "pitches": {}, "posted": 40.5,
                          "reasons": {"pass:beta": "no", "release:gamma": "tired", "skip:delta": "silent"}}
     bare = view({"id": "1"})
     assert (bare["title"], bare["body"], bare["scope"], bare["deps"], bare["state"], bare["posted_by"], bare["reasons"]) == ("", "", [], [], "open", None, {})
@@ -183,6 +187,7 @@ def test_view_marks_an_unusable_scope_as_none_so_no_region_contains_it(scope):
 
 def test_eligible_needs_open_done_dependencies_the_region_and_no_refusal_by_the_member(board, add_member, post_task, finish, task_edit):
     alpha = add_member(board, "alpha", ["src/"])
+    add_member(board, "gamma", ["docs/"])
     a = post_task(board, "a", ["src/a.py"])
     post_task(board, "elsewhere", ["docs/x.md"])
     b = post_task(board, "needs a", ["src/a.py"], [a["id"]])
@@ -434,7 +439,7 @@ def test_set_region_is_seen_at_once_by_a_board_opened_before_and_by_what_a_membe
     add_member(board, "beta", ["docs/"], "active")
     t = post_task(board, "shared", ["src/a.py", "docs/x.md"])
     later = board_module.Board(board.dir)
-    assert later.eligible(later.member("alpha")) == [] and later.eligible(later.member("beta")) == []
+    assert [x["id"] for x in later.eligible(later.member("alpha"))] == [t["id"]] == [x["id"] for x in later.eligible(later.member("beta"))]
     board.set_region("alpha", ["src/pkg/"])
     board.set_region("beta", ["docs/", "src/a.py"])
     assert later.member("beta")["region"] == ["docs/", "src/a.py"] and later.write_area("beta") == ["docs/", "src/a.py"] and later.write_area("alpha") == ["src/pkg/"]
@@ -468,13 +473,13 @@ def test_reap_releases_a_dead_members_task_without_blame_and_forgets_members_tha
     add_member(board, "idle", ["d/"], "idle")
     t = post_task(board, "t", ["a/x.py"])
     board.claim("dead", t["id"])
-    assert board.reap(lambda m: m["name"] == "live") == ["dead", "fresh"]
+    assert board.reap(lambda ms: {m["name"] for m in ms} & {"live"}) == ["dead", "fresh"]
     dead, task = board.member("dead"), board.task(t["id"])
     assert (dead["state"], dead["pid"], dead["task"]) == ("idle", None, None) and (task["state"], task["owner"], task["released_by"]) == ("open", None, [])
     assert board.member("fresh") is None and board.member("live")["state"] == "active" and board.member("idle")["state"] == "idle"
     assert board.claim("dead", t["id"])[0]["id"] == t["id"]
     version = board.version()
-    assert board.reap(lambda m: True) == [] and board.version() == version
+    assert board.reap(lambda ms: {m["name"] for m in ms}) == [] and board.version() == version
 
 
 def test_forget_frees_the_region_and_reopens_the_task_without_blame(board, add_member, post_task):
@@ -486,6 +491,17 @@ def test_forget_frees_the_region_and_reopens_the_task_without_blame(board, add_m
     assert (task["state"], task["owner"], task["released_by"]) == ("open", None, [])
     with board.locked():
         board.new_member("beta", ["src/"], "s")
+
+
+def test_forget_takes_back_what_the_member_asked_for(board, add_member, post_task):
+    add_member(board, "alpha", ["src/"], "active")
+    add_member(board, "beta", ["docs/"], "active")
+    review, survey = post_task(board, "review"), post_task(board, "survey")
+    board.mark("alpha", [review["id"]], "volunteer", "1.0")
+    board.mark("beta", [review["id"], survey["id"]], "volunteer", "2.0")
+    board.forget("alpha")
+    assert board.task(review["id"])["volunteers"] == board.task(survey["id"])["volunteers"] == {"beta": 2.0}
+    assert "volunteer:alpha" not in raw_task(board, review["id"])["metadata"]
 
 
 def test_post_to_a_member_holding_a_task_says_once_how_to_post_instead(board, add_member, post_task):
@@ -634,6 +650,73 @@ def test_requests_are_answered_once_and_wait_marks_them_expired(board, clock, ki
     assert board.wait(kind, waiting["id"], 5)["answer"] == "in time"
 
 
+def test_decisions_are_newest_first_and_say_what_who_and_when(board, clock, monkeypatch):
+    monkeypatch.setattr(policy, "time", clock)
+    p1 = board.request("perms", "alpha", {"tool": "Bash", "input": {"command": "wc -c"}, "tool_use_id": None, "always": False})
+    q1 = board.request("questions", "beta", {"question": "tabs?", "task": None, "answer": None, "options": []})
+    p2 = board.request("perms", "alpha", {"tool": "Edit", "input": {"file_path": "src/a.py"}, "tool_use_id": None, "always": False})
+    p3 = board.request("perms", "beta", {"tool": "WebFetch", "input": {"url": "https://x.example"}, "tool_use_id": None, "always": False})
+    q2 = board.request("questions", "alpha", {"question": "ship?", "task": None, "answer": None, "options": []})
+    assert board.decisions() == []
+    board.answer("perms", p1["id"], "allowed", by="user", always=True)
+    board.answer("questions", q1["id"], "answered", by="leader", answer="tabs")
+    assert policy.set_allow(board, "wc -c", "user") is None
+    board.answer("perms", p2["id"], "denied")
+    assert board.wait("perms", p3["id"], 0.3)["state"] == "expired"
+    assert board.wait("questions", q2["id"], 0.3)["state"] == "expired"
+    assert policy.set_allow(board, "wc -c", "leader", on=False) is None
+    rows = board.decisions()
+    assert [(r["kind"], r["state"], r["by"]) for r in rows] == [
+        ("allow", "removed", "leader"), ("question", "expired", None), ("perm", "expired", None), ("perm", "denied", "leader"), ("allow", "added", "user"),
+        ("question", "answered", "leader"), ("perm", "allowed", "user")]
+    assert all(set(r) == {"kind", "id", "member", "state", "by", "ts", "always", "widened", "what"} for r in rows)
+    assert [r["ts"] for r in rows] == sorted((r["ts"] for r in rows), reverse=True) and len({r["ts"] for r in rows}) == len(rows)
+    removed, late_q, late_p, denied, added, answer, allowed = rows
+    assert (removed["id"], removed["member"], removed["what"], removed["always"]) == (None, None, "wc -c", False) and added["what"] == "wc -c"
+    assert (late_p["id"], late_p["member"], late_p["what"]) == (p3["id"], "beta", "WebFetch https://x.example")
+    assert (denied["what"], allowed["what"], allowed["always"], denied["always"]) == ("Edit src/a.py", "Bash wc -c", True, False)
+    assert (answer["id"], answer["member"], answer["what"]) == (q1["id"], "beta", "tabs") and late_q["what"] is None
+    assert allowed["ts"] == read_json(board.dir / "perms" / f"{p1['id']}.json")["answered"] > p1["ts"]
+    assert late_p["ts"] == read_json(board.dir / "perms" / f"{p3['id']}.json")["answered"] > p3["ts"]
+    assert [r["id"] for r in board.decisions(2)] == [None, q2["id"]] and board.decisions(0) == []
+
+
+def test_a_tool_put_on_the_list_or_taken_off_shows_among_the_decisions_by_its_name(board, clock, monkeypatch):
+    monkeypatch.setattr(policy, "time", clock)
+    assert policy.set_tool(board, "mcp__srv__search", "user") is None
+    assert policy.set_tool(board, "mcp__srv__search", "leader", on=False) is None
+    rows = board.decisions()
+    assert [(r["kind"], r["state"], r["by"], r["what"], r["id"], r["member"]) for r in rows] == [
+        ("allow", "removed", "leader", "mcp__srv__search", None, None), ("allow", "added", "user", "mcp__srv__search", None, None)]
+    assert all(set(r) == {"kind", "id", "member", "state", "by", "ts", "always", "widened", "what"} for r in rows)
+
+
+def test_a_request_without_an_answer_time_is_dated_by_when_it_was_asked(board):
+    p = board.request("perms", "alpha", {"tool": "Bash", "input": {"command": "ls"}, "tool_use_id": None, "always": False})
+    path = board.dir / "perms" / f"{p['id']}.json"
+    old = read_json(path)
+    write_json(path, {**old, "state": "allowed", "by": "leader"})
+    assert [(r["ts"], r["state"]) for r in board.decisions()] == [(p["ts"], "allowed")]
+
+
+def test_the_leaders_summaries_are_kept_newest_first_and_validated(board, clock):
+    assert board.summaries() == [] and board.summaries(1) == []
+    version = board.version()
+    first = board.add_summary("  Parser done.  ")
+    second = board.add_summary("Docs next.\n\u4e2d\u6587 second line")
+    assert first["text"] == "Parser done." and second["text"] == "Docs next.\n\u4e2d\u6587 second line" and second["ts"] > first["ts"]
+    assert board.summaries() == [second, first] and board.summaries(1) == [second] and board.version() != version
+    assert (board.dir / "run" / "summary.jsonl").read_text(encoding="utf-8").count("\n") == 2 and "\u4e2d\u6587" in (board.dir / "run" / "summary.jsonl").read_text(encoding="utf-8")
+    assert board.add_summary("x" * board_module.SUMMARY_CHARS)["text"] == "x" * 4000
+    for bad in ("", "   ", "x" * (board_module.SUMMARY_CHARS + 1), None, 5, ["a"]):
+        with pytest.raises(ValueError, match="summary must be 1-4000 characters"):
+            board.add_summary(bad)
+    assert len(board.summaries()) == 3
+    with open(board.dir / "run" / "summary.jsonl", "a", encoding="utf-8") as f:
+        f.write("not json\n[1, 2]\n{\"text\": \"no time\"}\n")
+    assert len(board.summaries()) == 3 and board.summaries(2)[0]["text"] == "x" * 4000
+
+
 def test_a_task_file_that_changed_is_read_again_and_one_that_did_not_is_not(board, post_task, task_edit, monkeypatch):
     t = post_task(board, "first", ["src/a.py"])
     parsed, real = [], board._raw
@@ -665,3 +748,115 @@ def test_a_view_handed_out_is_a_copy_so_changing_it_never_changes_the_next_read(
     again = board.task(t["id"])
     assert (again["title"], again["state"], again["scope"], again["passed_by"], again["reasons"]) == ("first", "open", ["src/a.py"], ["alpha"], {"pass:alpha": "not now"})
     assert board.tasks()[0]["scope"] == ["src/a.py"]
+
+
+def test_a_members_help_counts_only_while_the_owner_holds_the_task(board, add_member, post_task, finish, task_edit):
+    add_member(board, "alpha", ["src/"], "active")
+    add_member(board, "beta", ["docs/"], "active")
+    t = post_task(board, "big", ["src/"])
+    board.claim("alpha", t["id"])
+    helps = {"task": t["id"], "owner": "alpha", "paths": ["src/pkg/"], "since": 1.5}
+    board.update_member("beta", helps=helps)
+    assert board.helping(board.member("beta")) == helps and board.write_area("beta") == ["docs/", "src/pkg/"] and board.write_area("alpha") == ["src/"]
+    assert board.helping(board.member("alpha")) is None and board.helping(None) is None and board.write_area("ghost") == []
+    board.release("alpha", t["id"], "too big")
+    assert board.helping(board.member("beta")) is None and board.write_area("beta") == ["docs/"]
+    task_edit(board, t["id"], status="in_progress")
+    raw = raw_task(board, t["id"])
+    raw["owner"] = "gamma"
+    write_json(board.tasks_dir / f"{t['id']}.json", raw)
+    assert board.helping(board.member("beta")) is None
+    raw["owner"] = "alpha"
+    write_json(board.tasks_dir / f"{t['id']}.json", raw)
+    assert board.helping(board.member("beta")) == helps
+    finish(board, "alpha", t["id"])
+    assert board.helping(board.member("beta")) is None and board.write_area("beta") == ["docs/"]
+    board.update_member("beta", helps="garbage")
+    assert board.helping(board.member("beta")) is None
+
+
+def test_a_member_that_helps_cannot_claim_another_task_until_the_help_is_over(board, add_member, post_task):
+    add_member(board, "alpha", ["src/"], "active")
+    add_member(board, "beta", ["docs/"], "active")
+    big, other = post_task(board, "big", ["src/"]), post_task(board, "other", ["docs/x.md"])
+    board.claim("alpha", big["id"])
+    board.update_member("beta", helps={"task": big["id"], "owner": "alpha", "paths": ["src/"], "since": 1.0})
+    why = f"beta is helping alpha with task {big['id']} and takes no other task until that one is done"
+    assert board.why_not("beta", other["id"]) == why and board.claim("beta", other["id"]) == (None, why)
+    assert board.task(other["id"])["state"] == "open" and board.member("beta").get("task") is None
+    board.release("alpha", big["id"], "too big")
+    assert board.why_not("beta", other["id"]) is None and board.claim("beta", other["id"])[0]["owner"] == "beta"
+
+
+def test_partners_resume_each_other_by_mail_only_a_few_times_per_help(board, add_member, post_task):
+    add_member(board, "alpha", ["src/"], "active")
+    add_member(board, "beta", ["docs/"], "active")
+    add_member(board, "gamma", ["lib/"], "active")
+    big = post_task(board, "big", ["src/"])
+    board.claim("alpha", big["id"])
+    board.update_member("beta", helps={"task": big["id"], "owner": "alpha", "paths": ["src/"], "since": 1.0})
+    assert board.partner_wake("beta", {"alpha"}) and board.partner_wake("alpha", {"beta"})
+    assert not board.partner_wake("beta", {"gamma"}) and not board.partner_wake("gamma", {"alpha", "beta"}) and not board.partner_wake("alpha", {"alpha"})
+    assert board.member("beta")["helps"].get("wakes", 0) == 0
+    wakes = [("beta", {"alpha"}), ("alpha", {"beta"}), ("beta", {"alpha"})]
+    assert len(wakes) == board_module.PARTNER_WAKES == 3
+    for spent, (name, senders) in enumerate(wakes, 1):
+        with board.locked():
+            assert board.partner_wake(name, senders, spend=True)
+        assert board.member("beta")["helps"]["wakes"] == spent
+    with board.locked():
+        assert not board.partner_wake("beta", {"alpha"}, spend=True) and not board.partner_wake("alpha", {"beta"}, spend=True)
+    assert not board.partner_wake("beta", {"alpha"}) and board.member("beta")["helps"]["wakes"] == board_module.PARTNER_WAKES
+    board.update_member("beta", helps={"task": big["id"], "owner": "alpha", "paths": ["src/"], "since": 2.0})
+    assert board.partner_wake("beta", {"alpha"})
+
+
+def test_a_request_line_names_no_home_path_even_where_it_is_cut():
+    home = str(Path.home())
+    lead = "x" * (400 - len("Bash  ") - len(home) + 3)
+    line = board_module.request_text({"tool": "Bash", "input": {"command": f"{lead} {home}/secret/file"}})
+    assert home[:-3] not in line and len(line) <= 400
+
+
+def _blocked_by(board, tid, deps):
+    raw = read_json(board.tasks_dir / f"{tid}.json")
+    raw["blockedBy"] = list(deps)
+    write_json(board.tasks_dir / f"{tid}.json", raw)
+
+
+def test_depth_is_the_longest_chain_waiting_on_a_task_and_how_many_wait_in_all(board, post_task, finish, add_member):
+    a, b = post_task(board, "a", ["src/a.py"]), post_task(board, "b", ["src/b.py"])
+    c = post_task(board, "c", ["src/c.py"], [a["id"]])
+    d = post_task(board, "d", ["src/d.py"], [c["id"]])
+    e, f = (post_task(board, n, [f"src/{n}.py"], [b["id"]]) for n in ("e", "f"))
+    g = post_task(board, "g", ["src/g.py"], [e["id"], f["id"]])
+    depth = board.depth()
+    assert [depth[t["id"]] for t in (a, b, c, d, e, f, g)] == [(3, 2), (3, 3), (2, 1), (1, 0), (2, 1), (2, 1), (1, 0)]
+    add_member(board, "alpha", ["src/"])
+    board.claim("alpha", a["id"])
+    finish(board, "alpha", a["id"])
+    board.cancel(b["id"], "leader", "not needed")
+    depth = board.depth()
+    assert (depth[a["id"]], depth[b["id"]], depth[c["id"]], depth[e["id"]]) == ((1, 0), (1, 0), (2, 1), (1, 0))
+
+
+def test_depth_cuts_a_cycle_where_it_closes(board, post_task):
+    a = post_task(board, "a", ["src/a.py"])
+    b = post_task(board, "b", ["src/b.py"], [a["id"]])
+    _blocked_by(board, a["id"], [b["id"], a["id"]])
+    assert sorted(board.depth()[t["id"]] for t in (a, b)) == [(1, 0), (2, 1)]
+
+
+def test_a_board_holding_still_reads_once_per_thread_hands_out_copies_and_the_outer_one_holds(board, add_member):
+    add_member(board, "alpha", ["src/"])
+    seen = []
+    with board.still():
+        assert [m["name"] for m in board.members()] == ["alpha"]
+        board.members()[0]["region"].append("lib/")
+        th = threading.Thread(target=lambda: (add_member(board, "beta", ["docs/"]), seen.append([m["name"] for m in board.members()])))
+        th.start()
+        th.join()
+        with board.still():
+            assert [(m["name"], m["region"]) for m in board.members()] == [("alpha", ["src/"])]
+    assert seen == [["alpha", "beta"]]
+    assert [m["name"] for m in board.members()] == ["alpha", "beta"]

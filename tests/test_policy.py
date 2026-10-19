@@ -32,6 +32,7 @@ def test_covers_within_overlap_and_minimal():
     assert not policy.within(["src/a.py", "docs/x"], ["src/"]) and not policy.within(["a"], [])
     assert policy.overlap(["src/"], ["src/a.py"]) and policy.overlap(["src/pkg/"], ["src/"]) and policy.overlap(["a/", "b/"], ["c/", "b/x"])
     assert not any([policy.overlap(["src/"], ["src2/"]), policy.overlap(["src/a.py"], ["src/b.py"]), policy.overlap([], ["src/"])])
+    assert policy.minimal(["a/", "a/x.py", "b", "b", "a//y/"]) == ["a/", "b"]
 
 
 def test_relpath_resolves_symlinks_and_is_none_outside_the_project(project, tmp_path):
@@ -101,7 +102,7 @@ def test_decide_keeps_reads_and_edits_inside_the_workspace_and_edits_inside_the_
     assert decide(crew, "Edit", file_path=str(project))["behavior"] == "deny"
     assert decide(crew, "Edit", file_path=str(project / "src" / "new" / "x.py"))["behavior"] == "allow"
     out = decide(crew, "Write", **guide)
-    assert out["behavior"] == "deny" and "outside your region" in out["message"] and '["src/"]' in out["message"]
+    assert out["behavior"] == "deny" and "it is in beta's region: ask beta by message" in out["message"]
     assert decide(crew, "Write", member="beta", **guide)["behavior"] == "allow"
     assert decide(crew, "Edit", member="ghost", file_path=str(project / "src" / "a.py"))["behavior"] == "deny"
 
@@ -686,8 +687,7 @@ def test_a_region_change_reaches_the_permission_answer_and_the_pre_hook_of_a_mem
     assert decide(running, "Write", **docs)["behavior"] == "deny" and pre(docs)["hookSpecificOutput"]["permissionDecision"] == "deny"
     crew.set_region("beta", ["docs/other/"])
     crew.set_region("alpha", ["lib/", "docs/guide.md"])
-    assert decide(running, "Write", **src)["behavior"] == "deny" and "outside your region" in decide(running, "Write", **src)["message"]
-    assert '["docs/guide.md", "lib/"]' in decide(running, "Write", **src)["message"]
+    assert decide(running, "Write", **src)["behavior"] == "deny" and "no member's region holds it: ask the leader" in decide(running, "Write", **src)["message"]
     assert pre(src)["hookSpecificOutput"]["permissionDecision"] == "deny" and decide(running, "Write", **docs)["behavior"] == "allow" and pre(docs) is None
     assert decide(running, "Write", member="beta", **docs)["behavior"] == "deny"
 

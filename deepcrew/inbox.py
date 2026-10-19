@@ -12,7 +12,8 @@ from .settings import fallback_now, setup_state
 CMD = providers.NAME
 
 ADD_DIR_HINT = "Unless you did already, write this line in the chat for the user to type, so this session reaches it too:"
-QUIET = ("note:",)
+QUIET = ("note:", "summary:")
+SUMMARY_EVERY = 3
 PRICE_NOTICE_S = 600.0
 
 
@@ -54,6 +55,15 @@ def page_url(team_dir: Path) -> str | None:
     return found["url"] if found else None
 
 
+def _proposal_lines(proposals: list[dict]) -> list[str]:
+    def spawn(g: dict) -> str:
+        return shlex.join([CMD, "spawn", g["name"], *(x for r in g["region"] for x in ("--region", r)), "--task", g["tasks"][0], "--role", g["role"],
+                           *(["--strength", g["strength"]] if g.get("strength") else [])])
+
+    return [f"proposal: nobody took {', '.join(g['tasks'])} for {int(g['waited'])} s; start {g['name']} for {g['region'] or 'reading only'}"
+            + "".join(f"\n  {d}" for d in g.get("declined", [])) + f"\n  {spawn(g)}" for g in proposals]
+
+
 def with_widening(board: Board, requests: list[dict]) -> list[dict]:
     return [{**r, "widening": policy.widening(board, r)} for r in requests]
 
@@ -71,9 +81,17 @@ def inbox_items(board: Board) -> dict:
     by_user = [r for kind in ("perms", "questions") for r in _answered_by_user(board, kind)]
     finished = bool(tasks) and all(t["state"] in ("done", "cancelled") for t in tasks) and not any(m.get("task") for m in board.members())
     items = {f"perm:{r['id']}": ("perm", r) for r in reqs} | {f"question:{q['id']}": ("question", q) for q in asks}
+    full = len(board.members()) >= board.cfg["max_active"]
+    items |= {"proposal:" + ",".join(g["tasks"]): ("proposal", g) for g in plan["proposals"] if g["due"] and not full}
     items |= {f"blocked:{b['task']}:{b['reason']}": ("blocked", b) for b in plan["blocked"]}
     items |= {f"note:{n}": ("note", n) for n in plan["notes"]}
+    items |= {f"choose:{c['task']}:{','.join(c['volunteers'])}": ("choose", c) for c in plan["choices"]}
     items |= {f"answer:{r['id']}": ("answer", r) for r in by_user}
+    if c := plan["capacity"]:
+        items[f"capacity:{','.join(c['idle'])}"] = ("capacity", c)
+    last = (board.summaries(1) or [{}])[0]
+    if (since := sum(t["state"] == "done" for t in tasks) - last.get("done", 0)) >= SUMMARY_EVERY:
+        items[f"summary:{last.get('ts', 0)}"] = ("summary", {"since": since, "at": last.get("ts")})
     if finished:
         items[f"finished:{len(tasks)}"] = ("finished", {"tasks": len(tasks), "done": sum(t["state"] == "done" for t in tasks)})
     if pn := price_notice(board):
@@ -129,6 +147,8 @@ def _item_line(kind: str, x: dict) -> str:
     if kind == "question":
         return (f"question {x['id']} from {x['member']}" + (f" on {x['task']}" if x["task"] else "") + f" (the member is waiting): {x['question']}"
                 + (f"\n  options: {' | '.join(x['options'])}" if x.get("options") else "") + f"\n  answer: {CMD} answer {shlex.quote(x['id'])} \"...\"")
+    if kind == "proposal":
+        return _proposal_lines([x])[0]
     if kind == "blocked":
         return f"blocked {x['task']}: {x['reason']}"
     if kind == "note":
@@ -169,9 +189,22 @@ def _item_line(kind: str, x: dict) -> str:
         if not x.get("usd"):
             return "budget: the user removed the team's budget"
         return f"budget: the user set the team's budget to {money(x['usd'])}" + (f", {money(x['spent'])} spent so far" if x.get("spent") is not None else "")
+    if kind == "choose":
+        said = "".join(f"\n  {n}: {p}" for n, p in (x.get("pitches") or {}).items())
+        return (f"choose: task {x['task']} ({x['title']}) was asked for by {', '.join(x['volunteers'])}; closest role by its words: "
+                f"{x['suggested']}{said}\n  {CMD} assign {shlex.quote(x['task'])} NAME --note \"your brief\"")
     if kind == "answer":
         what = x.get("answer") if x["id"].startswith("Q") else f"{x['tool']} {json.dumps(x.get('input'), ensure_ascii=False)[:120]}"
         return (f"the user answered {x['id']} from {x['member']} on the page: {x['state']}"
                 + (f" ({providers.shown(widened_words(x.get('widened') or {}))})" if x.get("always") else "") + f": {what}")
+    if kind == "summary":
+        told = (f"since your last summary ({time.strftime('%H:%M', time.localtime(x['at']))}), which the page still shows the user" if x["at"]
+                else "and the page has no summary for the user yet")
+        return f"summary: {x['since']} tasks done {told}: {CMD} summary \"done, running, next, blockers\""
+    if kind == "capacity":
+        running = "; ".join(f"{r['task']} {r['title'][:40]} ({r['owner']}" + "".join(f" + {h}" for h in r["helpers"]) + ")" for r in x["running"][:5])
+        return (f"capacity: {len(x['idle'])} idle member(s)" + (f", room for {x['free']} more" if x["free"] else "") + f", {x['ready']} ready task(s): "
+                f"post up to {x['room']} more subtasks with disjoint scopes, or put an idle member on a running task: "
+                f"{CMD} assist TASK NAME [PATH ...]\n  running: {running}")
     return (f"finished: {x['done']} of {x['tasks']} tasks done, nobody holds one; read the summaries, run the checks, {CMD} audit. "
             f"Keep the team: the crew rests by itself, and the next request needs no new {CMD} up")

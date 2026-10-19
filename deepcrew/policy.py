@@ -11,6 +11,7 @@ from pathlib import Path
 from . import providers
 
 from .paths import covers, fold, git_bash_native, ignores_case, inside, norm, norm_all, overlap, pathmod, relpath, rule_path, within
+from .paths import minimal
 from .shell import SHELL_META, allow_refusal, allowlisted, joined_parts, parts, program, runs_code
 
 READ_TOOLS = ("Read", "Glob", "Grep")
@@ -116,10 +117,10 @@ def decide(board, member: str, tool: str, tool_input: dict) -> dict | None:
             if board.reachable(absolute):
                 return {"behavior": "deny", "message": f"{path} is in a folder linked for reading only"}
             return None
-        if tool in EDIT_TOOLS:
-            area = board.write_area(member)
-            if not ((rel is not None and covers(area, rel)) or board.own_file(member, absolute)):
-                return {"behavior": "deny", "message": f"{path} is outside your region {json.dumps(area)}"}
+        if tool in EDIT_TOOLS and not board.own_file(member, absolute):
+            why = board.write_block(member, rel) if rel is not None else "it is not in the project"
+            if why:
+                return {"behavior": "deny", "message": f"{path}: {why}"}
         return {"behavior": "allow", "updatedInput": tool_input}
     cfg = board.live_cfg()
     command = tool_input.get("command", "")

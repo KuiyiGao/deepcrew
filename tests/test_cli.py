@@ -395,14 +395,24 @@ def _age(board, tid, seconds):
     os.utime(board.tasks_dir / f"{tid}.json", (old, old))
 
 
+def _seen_by_all(board, *tids):
+    for m in board.members():
+        board.mark(m["name"], list(tids), "skip", "offered; neither taken nor declined")
+
+
 def test_post_prints_the_task_and_starts_nothing(lead, deepcrew, procs):
     code, out, err = deepcrew("post", "write parser", "--body", "details", "--scope", "lib/parser/", "--scope", "lib/x.py")
     assert (code, err) == (0, "") and out.startswith("posted 1: write parser  scope=['lib/parser/', 'lib/x.py']") and lead.task("1")["body"] == "details"
+    assert "proposal" not in out
+    _seen_by_all(lead, "1")
     _age(lead, "1", 61)
     status = deepcrew("status")[1]
-    assert "blocked 1: no member's region covers its scope" in status
-    assert read_json(lead.tasks_dir / "1.json")["metadata"] == {"scope": ["lib/parser/", "lib/x.py"], "by": "leader"}
-    assert [m["name"] for m in lead.members()] == ["alpha", "beta"] and procs.calls == []
+    assert "proposal: nobody took 1 for 6" in status and "start write-parser for ['lib/parser/', 'lib/x.py']" in status
+    assert "deepcrew spawn write-parser --region lib/parser/ --region lib/x.py --task 1 --role 'write parser. details'" in status
+    md = {k: v for k, v in read_json(lead.tasks_dir / "1.json")["metadata"].items() if k != "posted" and not k.startswith("skip:")}
+    assert md == {"scope": ["lib/parser/", "lib/x.py"], "by": "leader"}
+    assert [m["name"] for m in lead.members()] == ["alpha", "beta"]
+    assert sorted(c["member"]["name"] for c in procs.calls) == ["alpha", "beta"]
     assert json.loads(deepcrew("post", "u", "--no-route", "--json")[1])["routing"] is None
     for argv, message in ((["post", "t", "--dep", "99"], "unknown dependency: 99"), (["post", "  "], "title"), (["post", "t", "--scope", "/abs"], "region entries")):
         code, out, err = deepcrew(*argv, "--no-route")
@@ -415,19 +425,36 @@ def test_status_and_inbox_show_what_waits_for_the_leader(lead, deepcrew, post_ta
     perm = lead.request("perms", "alpha", {"tool": "Bash", "input": {"command": "make all"}, "tool_use_id": None, "always": False})
     ask = lead.request("questions", "beta", {"question": "Ship it?", "options": ["yes", "no"], "task": None, "answer": None})
     lead.send("alpha", "leader", "message", "dispute: beta edits src/")
+    _seen_by_all(lead, "1", "2")
     _age(lead, "1", 61)
     data = json.loads(deepcrew("status", "--json")[1])
-    assert [b["reason"] for b in data["blocked"]] == ["scope crosses a region boundary", f"no member's region covers its scope; start one with {cli.CMD} spawn NAME --region PATH --task 1"]
+    assert [g["name"] for g in data["proposals"]] == ["new-area"] and [b["reason"] for b in data["blocked"]] == ["scope crosses a region boundary"]
     assert [r["id"] for r in data["permission_requests"]] == [perm["id"]] and [q["id"] for q in data["questions"]] == [ask["id"]] and data["unread"] == 1
     text = deepcrew("status")[1]
-    assert "blocked 1: no member's region" in text and "blocked 2:" in text and "1 permission request(s), 1 question(s), 1 unread" in text
+    assert "start new-area for ['lib/']" in text and "blocked 2:" in text and "1 permission request(s), 1 question(s), 1 unread" in text
     assert "  1 open " in text and "  2 open " in text
     out = deepcrew("inbox")[1]
     assert f"permission {perm['id']} from alpha: Bash" in out and f"deepcrew approve {perm['id']}" in out and f"question {ask['id']} from beta" in out
-    assert "options: yes | no" in out and "message from alpha: dispute: beta edits src/" in out and "blocked 1:" in out
+    assert "options: yes | no" in out and "message from alpha: dispute: beta edits src/" in out and "start new-area" in out
     again = json.loads(deepcrew("inbox", "--json")[1])
     assert again["messages"] == [] and again["new"] == [] and len(lead.pending("perms")) == 1
     assert "(shown before)" in deepcrew("inbox", "--wait", "0")[1]
+
+
+def test_the_inbox_asks_the_leader_to_choose_and_assign_gives_the_task(lead, deepcrew, post_task):
+    t = post_task(lead, "Review everything")
+    for name in ("alpha", "beta"):
+        lead.update_member(name, state="active", pid=4242, offered=[t["id"]])
+    for name in ("alpha", "beta"):
+        member.task_rules(lead, name, "TaskUpdate", {"taskId": t["id"], "status": "in_progress"})
+    lead.update_member("alpha", state="idle", pid=None)
+    lead.update_member("beta", state="idle", pid=None)
+    out = deepcrew("inbox")[1]
+    assert f"choose: task {t['id']} (Review everything) was asked for by alpha, beta" in out and f"deepcrew assign {t['id']} NAME" in out
+    code, out, err = deepcrew("assign", t["id"], "beta")
+    assert (code, out) == (0, f"task {t['id']} assigned to beta; it comes as its next message\n") and lead.task(t["id"])["owner"] == "beta"
+    code, out, err = deepcrew("assign", t["id"], "alpha")
+    assert code == 1 and "claimed by beta" in err
 
 
 def test_inbox_wait_returns_for_new_items_only_and_says_when_the_board_finished(lead, deepcrew, post_task, finish, monkeypatch):
@@ -490,6 +517,19 @@ def test_send_mails_the_member_and_wakes_it_through_route_run(lead, deepcrew, mo
     assert deepcrew("send", "all", "  ")[0] == 1 and [len(lead.mail_pending(n)) for n in ("alpha", "beta")] == [1, 1]
 
 
+def test_send_to_the_user_puts_it_on_the_page_in_the_language_the_user_reads(lead, deepcrew):
+    code, out, err = deepcrew("send", "user", "Two of four tasks are done.")
+    assert (code, out) == (0, "on the page for the user\n")
+    (m,) = lead.take_mail("user")
+    assert (m["from"], m["to"], m["text"]) == ("leader", "user", "Two of four tasks are done.")
+    code, out, _ = deepcrew("lang", "simplified chinese")
+    assert code == 0 and "the user reads replies in Simplified Chinese" in out and lead.live_cfg()["reply_lang"] == "Simplified Chinese"
+    code, _, err = deepcrew("send", "user", "Two of four tasks are done.")
+    assert code == 1 and "write it in Simplified Chinese" in err
+    assert deepcrew("lang", "Klingon")[0] == 1 and "Simplified Chinese" in deepcrew("lang")[1]
+    assert any(x.startswith("replies   in Simplified Chinese") for x in cli.summary(lead, None))
+
+
 def test_spawn_starts_a_member_with_its_region_task_and_role(lead, deepcrew, post_task, procs):
     t = post_task(lead, "parse", ["lib/"])
     code, out, err = deepcrew("spawn", "libby", "--region", "lib/", "--task", t["id"], "--role", "owns the parser")
@@ -497,6 +537,9 @@ def test_spawn_starts_a_member_with_its_region_task_and_role(lead, deepcrew, pos
     assert lead.member("libby")["state"] == "active" and lead.task(t["id"])["owner"] == "libby"
     code, _, err = deepcrew("spawn", "other", "--region", "lib/x/")
     assert code == 1 and "overlaps" in err and deepcrew("spawn")[0] == 1
+    post_task(lead, "elsewhere", ["web/"])
+    _seen_by_all(lead, "2")
+    assert deepcrew("spawn", "--proposals")[1] == "started elsewhere region=['web/'] task=2\n" and deepcrew("spawn", "--proposals")[1] == "no proposals\n"
 
 
 def test_forget_stops_and_removes_a_member_and_frees_its_region(lead, deepcrew, post_task):
@@ -843,6 +886,14 @@ def test_the_command_that_frees_the_session_quotes_each_word_for_the_shell(tmp_p
     assert shlex.split(refusal.split("finish it first: ", 1)[1]) == ["deepcrew", "stop", "--all", "--project", str(odd), "--team", "main"]
 
 
+def test_a_proposed_spawn_command_runs_no_part_of_the_task_text_in_the_shell():
+    role = "Fix `rm -rf ~` and $(id) in 'quotes'"
+    (line,) = cli._proposal_lines([{"tasks": ["7"], "waited": 61, "name": "fix-rm", "region": ["src/a b/"], "role": role, "strength": "strong"}])
+    command = line.splitlines()[-1].strip()
+    assert shlex.split(command) == ["deepcrew", "spawn", "fix-rm", "--region", "src/a b/", "--task", "7", "--role", role, "--strength", "strong"]
+    assert f"--role {shlex.quote(role)} " in command
+
+
 def test_the_session_id_names_a_file_inside_the_leaders_folder(monkeypatch):
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "../../x/y")
     assert cli.session_id() == ".._.._x_y"
@@ -1032,6 +1083,13 @@ def test_spawn_refuses_names_that_are_not_good_taken_or_used_before(lead, deepcr
     assert deepcrew("forget", "physics-engine")[0] == 0 and read_json(lead.dir / "names.json") == ["physics-engine"]
     code, _, err = deepcrew("spawn", "physics-engine", "--region", "lib/")
     assert code == 1 and "was used earlier in this team" in err and len(procs.calls) == 1
+    _seen_by_all(lead, post_task(lead, "Physics engine", ["web/"])["id"])
+    assert [g["name"] for g in route_plan(lead)] == ["physics-engine-2"]
+
+
+def route_plan(board):
+    from deepcrew import route
+    return route.plan(board)["proposals"]
 
 
 def test_spawn_stops_at_the_teams_member_limit_and_config_raises_it(make_board, add_member, deepcrew, procs, post_task):
@@ -1042,6 +1100,19 @@ def test_spawn_stops_at_the_teams_member_limit_and_config_raises_it(make_board, 
     code, out, err = deepcrew("spawn", "delta", "--region", "web/")
     assert (code, out) == (1, "") and "team 'main' already has 3 members, its limit" in err and "deepcrew config set max_active" in err and len(procs.calls) == 1
     assert deepcrew("config", "set", "max_active", "4")[0] == 0 and deepcrew("spawn", "delta", "--region", "web/")[0] == 0 and len(procs.calls) == 2
+
+
+def test_spawn_proposals_starts_what_fits_and_says_what_is_left(make_board, add_member, deepcrew, procs, post_task):
+    board = make_board("main", default_location=True, max_active=3)
+    add_member(board, "alpha", ["src/"])
+    add_member(board, "beta", ["docs/"])
+    post_task(board, "first job", ["lib/"])
+    post_task(board, "second job", ["web/"])
+    _seen_by_all(board, "1", "2")
+    code, out, err = deepcrew("spawn", "--proposals")
+    assert (code, err) == (0, "") and out == "started first-job region=['lib/'] task=1\n1 proposal(s) not started: the team is at its limit of 3 members\n"
+    code, _, err = deepcrew("spawn", "--proposals")
+    assert code == 1 and "already has 3 members, its limit" in err
 
 
 def test_a_prompt_pack_with_a_stray_dollar_is_refused_naming_the_file_and_line(deepcrew, project, providers_toml, monkeypatch, tmp_path):
@@ -1241,6 +1312,92 @@ def test_allow_says_empty_only_when_there_are_neither_commands_nor_tools(make_bo
     assert deepcrew("allow", "--tool", "mcp__a__b")[1] == f"  {'mcp__a__b':28} approved by leader\n"
 
 
+def test_the_inbox_asks_for_more_work_once_per_set_of_idle_members_and_not_when_there_is_none_to_give(lead, deepcrew, post_task, finish, add_member):
+    add_member(lead, "gamma", ["lib/"])
+    t1, t2 = post_task(lead, "one", ["src/"]), post_task(lead, "two", ["docs/"])
+    assert json.loads(deepcrew("inbox", "--json")[1])["capacity"] is None
+    lead.claim("alpha", t1["id"])
+    lead.claim("beta", t2["id"])
+    data = json.loads(deepcrew("inbox", "--json")[1])
+    assert data["capacity"] == {"idle": ["gamma"], "free": 5, "ready": 0, "room": 6, "done": 0, "running": [
+        {"task": t1["id"], "title": "one", "owner": "alpha", "helpers": []}, {"task": t2["id"], "title": "two", "owner": "beta", "helpers": []}]}
+    assert data["new"] == ["capacity:gamma"]
+    text = deepcrew("inbox")[1]
+    assert "capacity: 1 idle member(s), room for 5 more, 0 ready task(s): post up to 6 more subtasks" in text and "deepcrew assist TASK NAME [PATH ...]" in text
+    assert f"running: {t1['id']} one (alpha); {t2['id']} two (beta)" in text and "(shown before)" in text
+    finish(lead, "alpha", t1["id"])
+    data = json.loads(deepcrew("inbox", "--json")[1])
+    assert data["new"] == ["capacity:alpha,gamma"] and data["capacity"]["done"] == 1 and data["capacity"]["idle"] == ["alpha", "gamma"]
+    lead.update_member("alpha", state="active", pid=4242)
+    lead.update_member("alpha", state="idle", pid=None)
+    assert json.loads(deepcrew("inbox", "--json")[1])["new"] == []
+    for n in range(7):
+        post_task(lead, f"ready {n}", [f"w{n}/"])
+    data = json.loads(deepcrew("inbox", "--json")[1])
+    assert data["capacity"] is None and data["new"] == [] and "capacity:" not in deepcrew("inbox")[1]
+
+
+def test_a_full_crew_hears_of_no_proposals_while_status_still_lists_them(make_board, add_member, deepcrew, post_task):
+    board = make_board("main", default_location=True, max_active=1, propose_after_s=0)
+    add_member(board, "alpha", ["src/"])
+    _seen_by_all(board, post_task(board, "new area", ["web/"])["id"])
+    assert json.loads(deepcrew("inbox", "--json")[1])["proposals"] == []
+    assert [g["name"] for g in json.loads(deepcrew("status", "--json")[1])["proposals"]] == ["new-area"]
+
+
+def test_assist_puts_an_idle_member_on_a_task_and_says_so(lead, deepcrew, post_task, procs, add_member):
+    add_member(lead, "gamma", ["lib/"])
+    t = post_task(lead, "big job", ["src/"])
+    lead.claim("alpha", t["id"])
+    lead.update_member("alpha", state="active", pid=4242)
+    code, out, err = deepcrew("assist", t["id"], "beta", "src/pkg/")
+    assert (code, err) == (0, "") and out == f"beta now helps with task {t['id']}; both were told by mail\n"
+    assert lead.helping(lead.member("beta"))["paths"] == ["src/pkg/"] and len(lead.peek_mail("alpha")) == 1 and len(procs.calls) == 1
+    assert procs.calls[0]["member"]["name"] == "beta"
+    code, out, err = deepcrew("assist", t["id"], "beta")
+    assert code == 1 and out == "" and err == f"deepcrew: beta is busy with task {t['id']}\n"
+    assert deepcrew("assist", t["id"], "ghost")[2] == "deepcrew: 'ghost' is not a working member of this team\n"
+    assert deepcrew("assist", "99", "beta")[2] == "deepcrew: there is no task 99\n"
+    code, _, err = deepcrew("assist", t["id"], "gamma", "/etc")
+    assert code == 1 and "project-relative" in err and lead.helping(lead.member("gamma")) is None
+
+
+def test_status_shows_the_capacity_the_helpers_and_the_latest_summary(lead, deepcrew, post_task, add_member, procs):
+    add_member(lead, "gamma", ["lib/"])
+    t = post_task(lead, "big job", ["src/"])
+    lead.claim("alpha", t["id"])
+    lead.update_member("alpha", state="active", pid=4242)
+    out = deepcrew("status")[1]
+    assert "capacity: 2 idle member(s), room for 5 more, 0 ready task(s)" in out and "helps=" not in out and "summary   " not in out
+    assert deepcrew("assist", t["id"], "beta")[0] == 0 and deepcrew("summary", "Parser half done.")[0] == 0
+    out = deepcrew("status")[1]
+    beta = next(line for line in out.splitlines() if line.startswith("  beta"))
+    assert f"helps={t['id']}" in beta and "helps=" not in next(line for line in out.splitlines() if line.startswith("  alpha"))
+    assert "capacity: 1 idle member(s)" in out and f"{t['id']} big job (alpha + beta)" in out and "summary   Parser half done." in out
+    data = json.loads(deepcrew("status", "--json")[1])
+    assert data["helpers"] == {"beta": lead.member("beta")["helps"]} and data["capacity"]["running"][0]["helpers"] == ["beta"]
+    assert data["leader_summary"]["text"] == "Parser half done."
+
+
+def test_summary_records_what_the_leader_says_and_status_shows_the_latest_line(lead, deepcrew):
+    assert deepcrew("summary") == (0, "no summary yet\n", "") and json.loads(deepcrew("summary", "--json")[1]) == {"summaries": []}
+    assert json.loads(deepcrew("status", "--json")[1])["leader_summary"] is None
+    code, out, err = deepcrew("summary", "Parser done.\nDocs next.")
+    assert (code, err) == (0, "") and re.fullmatch(r"\d\d:\d\d  Parser done\.\nDocs next\.\n", out)
+    assert deepcrew("summary", "second")[0] == 0
+    shown = deepcrew("summary")[1].splitlines()
+    assert [line[7:] for line in shown if re.match(r"\d\d:\d\d  ", line)] == ["second", "Parser done."]
+    assert deepcrew("summary", "x" * 4001)[0] == 1 and deepcrew("summary", "   ")[0] == 1 and len(lead.summaries()) == 2
+    status = deepcrew("status")[1]
+    assert "summary   second" in status and "Parser" not in status
+    deepcrew("summary", "L1 " + "y" * 300 + "\nsecond line")
+    long = [line for line in deepcrew("status")[1].splitlines() if line.startswith("summary   ")]
+    assert long == ["summary   " + ("L1 " + "y" * 300)[:160]]
+    data = json.loads(deepcrew("status", "--json")[1])
+    assert data["leader_summary"]["text"].endswith("second line") and set(data) >= {"capacity", "helpers", "leader_summary"}
+    assert [r["text"][:2] for r in json.loads(deepcrew("summary", "--json")[1])["summaries"]] == ["L1", "se", "Pa"]
+
+
 def tools_flag(board) -> list[str]:
     argv = member.argv(board, {"name": "alpha", "session": "s"}, resume=False)
     return argv[argv.index("--tools") + 1].split(",")
@@ -1311,6 +1468,30 @@ def test_check_warns_when_the_member_limit_would_use_half_the_hosts_memory(proje
     assert cli.host_memory_mb() is None or cli.host_memory_mb() > 0
 
 
+def test_audit_accepts_a_helpers_edits_in_the_task_it_helped_with_and_flags_the_same_edits_made_without_help(lead, deepcrew, project, post_task, finish, add_member, procs):
+    add_member(lead, "gamma", ["lib/"])
+    t = post_task(lead, "big job", ["src/"])
+    lead.claim("alpha", t["id"])
+    lead.update_member("alpha", state="active", pid=4242)
+    assert deepcrew("assist", t["id"], "beta", "src/pkg/")[0] == 0
+    for rel, text in {"src/a.py": "A = 2\n", "src/pkg/b.py": "B = 2\n"}.items():
+        (project / rel).write_text(text)
+    lead.log_edit("alpha", "Edit", "src/a.py")
+    lead.log_edit("alpha", "Edit", "src/pkg/b.py")
+    lead.log_edit("beta", "Edit", "src/pkg/b.py")
+
+    def flags():
+        return {f["path"]: (f["owner"], f["edited_by"], f["flags"]) for f in json.loads(deepcrew("audit", "--json")[1])["files"]}
+
+    assert flags() == {"src/a.py": ("alpha", ["alpha"], []), "src/pkg/b.py": ("alpha", ["alpha", "beta"], [])}
+    finish(lead, "alpha", t["id"])
+    lead.log_edit("beta", "Edit", "src/a.py")
+    lead.log_edit("gamma", "Edit", "src/pkg/b.py")
+    assert flags() == {"src/a.py": ("alpha", ["alpha", "beta"], ["edited_by_non_owner"]), "src/pkg/b.py": ("alpha", ["alpha", "beta", "gamma"], ["edited_by_non_owner"])}
+    assert [(r["member"], r.get("for_owner")) for r in map(json.loads, (lead.dir / "edits.jsonl").read_text().splitlines())] == [
+        ("alpha", None), ("alpha", None), ("beta", "alpha"), ("beta", None), ("gamma", None)]
+
+
 def test_stop_all_also_closes_the_teams_page_and_says_so(lead, deepcrew, monkeypatch):
     closed = []
     monkeypatch.setattr(ui, "stop_page", lambda team_dir: closed.append(Path(team_dir)) or True)
@@ -1327,6 +1508,22 @@ def test_a_key_is_asked_for_in_a_terminal_only(monkeypatch):
     assert cli.obtain_key(PROVIDER) is None and asked == []
     monkeypatch.setattr(providers, "can_prompt", lambda: True)
     assert cli.obtain_key(PROVIDER) == "the .env file" and asked == ["fake"]
+
+
+def test_the_inbox_asks_for_a_new_summary_once_three_tasks_closed_since_the_last_one(lead, deepcrew, post_task, finish):
+    tasks = [post_task(lead, f"t{i}", [f"src/{i}/"]) for i in range(4)]
+    for t in tasks[:2]:
+        lead.claim("alpha", t["id"])
+        finish(lead, "alpha", t["id"])
+    assert json.loads(deepcrew("inbox", "--json")[1])["summary"] is None
+    lead.claim("beta", tasks[2]["id"])
+    finish(lead, "beta", tasks[2]["id"])
+    data = json.loads(deepcrew("inbox", "--json")[1])
+    assert data["summary"] == {"since": 3, "at": None} and "summary:0" in data["new"]
+    assert 'summary: 3 tasks done and the page has no summary for the user yet: deepcrew summary "done, running, next, blockers"' in deepcrew("inbox")[1]
+    row = lead.add_summary("three done")
+    assert row["done"] == 3 and json.loads(deepcrew("inbox", "--json")[1])["summary"] is None
+    assert cli.QUIET[1] == "summary:"
 
 
 def test_a_provider_without_a_balance_endpoint_is_not_called_checked(monkeypatch):
@@ -1443,3 +1640,24 @@ def test_version_prints_the_package_version(capsys):
     with pytest.raises(SystemExit) as done:
         cli.main(["--version"])
     assert done.value.code == 0 and capsys.readouterr().out.strip().endswith(__version__)
+
+
+def test_a_summary_carries_the_round_report_the_page_shows(lead, deepcrew):
+    code, out, _ = deepcrew("summary", "Round 2 done.", "--finished", "streaks table", "--finished", "GET /streaks", "--running", "weekly chart",
+                            "--risks", "time zones", "--decide", "bars or a line?", "--json")
+    (row,) = json.loads(out)["summaries"]
+    assert code == 0 and row["text"] == "Round 2 done." and row["finished"] == ["streaks table", "GET /streaks"] and row["decide"] == ["bars or a line?"]
+    assert (row["running"], row["risks"]) == (["weekly chart"], ["time zones"])
+    assert deepcrew("summary", "--decide", "ship it?")[0] == 0 and lead.summaries(1)[0] == {**lead.summaries(1)[0], "text": "", "decide": ["ship it?"]}
+
+
+def test_audit_accepts_an_edit_its_task_lease_allowed_and_names_the_lease(lead, deepcrew, project, post_task):
+    t = post_task(lead, "readme", ["README.md", "docs/guide.md"])
+    assert lead.claim("beta", t["id"])[0] is None and deepcrew("assign", t["id"], "alpha")[0] == 0
+    for rel in ("README.md", "docs/guide.md"):
+        (project / rel).write_text("changed\n")
+        lead.log_edit("alpha", "Edit", rel)
+    files = {f["path"]: f for f in json.loads(deepcrew("audit", "--json")[1])["files"]}
+    assert (files["README.md"]["flags"], files["README.md"]["leased_to"]) == ([], ["alpha"])
+    assert (files["docs/guide.md"]["owner"], files["docs/guide.md"]["flags"], files["docs/guide.md"]["leased_to"]) == ("beta", [], ["alpha"])
+    assert "lease=alpha" in deepcrew("audit")[1]

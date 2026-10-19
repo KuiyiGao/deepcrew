@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepcrew"
-version = "0.1.0"
+version = "0.1.1"
 authors = [{ name = "KuiyiGao" }]
 description = "The cheapest ultracode for Claude Code: a multi-agent swarm of stock Claude Code agents on DeepSeek, led by your own Claude Code or Codex."
 readme = "README.md"
@@ -43,7 +43,7 @@ deepcrew = "deepcrew.cli:main"
 packages = ["deepcrew"]
 
 [tool.setuptools.package-data]
-deepcrew = ["prompts/basic/*.md", "ui.html"]
+deepcrew = ["prompts/basic/*.md", "ui.html", "live.html"]
 
 [tool.ruff]
 line-length = 160
