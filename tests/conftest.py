@@ -78,7 +78,8 @@ def _no_network(*a, **kw):
 def _isolated(request, tmp_path, monkeypatch):
     for var in leader_env():
         monkeypatch.delenv(var)
-    for var, value in {"DEEPCREW_HOME": tmp_path / ".deepcrew", "GIT_CEILING_DIRECTORIES": tmp_path, **GIT_ENV}.items():
+    for var, value in {"DEEPCREW_HOME": tmp_path / ".deepcrew", "GIT_CEILING_DIRECTORIES": tmp_path, **GIT_ENV,
+                       "DEEPCREW_LOAD_GUARD": "off"}.items():
         monkeypatch.setenv(var, str(value))
     monkeypatch.setattr(providers, "CONFIG_DIR", tmp_path / ".config" / "deepcrew")
     monkeypatch.setattr(providers, "ENV_FILE", tmp_path / ".config" / "deepcrew" / ".env")

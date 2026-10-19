@@ -64,14 +64,41 @@ def screen(board: Board, member: str, command: str) -> str | None:
             return f"names {providers.shown(bad)}, outside the project"
         if name in ESCALATE:
             return f"runs {name}"
-        if name == "git" and (sub := git_command(args)) not in GIT_READS:
-            return f"runs git {sub or ''}".rstrip()
+        if name == "git" and not git_reads(args):
+            return f"runs git {git_command(args) or ''}".rstrip()
         if name in PACKAGERS and SENDS & set(args):
             return f"runs {name} {next(a for a in args if a in SENDS)}"
         if name in DELETE and (theirs := not_own(board, member, [a for a in args if not a.startswith("-")])):
             return f"deletes {providers.shown(theirs)}, which is not {member}'s"
         if name == "find" and ({"-delete", "-exec", "-execdir", "-ok", "-okdir"} & set(args)):
             return "runs find with -delete or -exec"
+    return None
+
+
+SANDBOX_FETCH = frozenset({"curl", "wget", "aria2c"})
+
+
+def sandbox_screen(board: Board, member: str, command: str) -> str | None:
+    commands = programs_of(command)
+    if commands is None:
+        words = {w.rsplit("/", 1)[-1] for w in WORD.findall(QUOTED_HEREDOC.sub("", command))}
+        if hit := sorted(words & (ESCALATE - SANDBOX_FETCH)):
+            return f"runs {hit[0]}"
+        if words & {*DELETE, "git", "eval"}:
+            return "deletes files or runs git in a command too intricate to check"
+        return None
+    for argv in commands:
+        name, args = shell.program(argv[0]), argv[1:]
+        if name in ESCALATE - SANDBOX_FETCH:
+            return f"runs {name}"
+        if name == "git" and not git_reads(args):
+            return f"runs git {git_command(args) or ''}".rstrip()
+        if name in PACKAGERS and SENDS & set(args):
+            return f"runs {name} {next(a for a in args if a in SENDS)}"
+        if name in DELETE and (theirs := not_own(board, member, [a for a in args if not a.startswith("-")])):
+            return f"deletes {providers.shown(theirs)}, which is not {member}'s"
+        if name == "find" and "-delete" in args:
+            return "runs find with -delete"
     return None
 
 
@@ -110,6 +137,28 @@ def far_word(board: Board, words: list[str]) -> str | None:
         if not (policy.inside(full, root) or board.in_shared(full) or board.reachable(full) or policy.inside(full, os.path.realpath(tools_dir()))):
             return w
     return None
+
+
+GIT_LISTS = {"branch": ("-a", "--all", "-r", "--remotes", "-l", "--list", "-v", "-vv", "--verbose", "--show-current", "--contains", "--merged",
+                        "--no-merged", "--sort", "--format", "--color", "--no-color", "--column", "--no-column", "--points-at"),
+             "tag": ("-l", "--list", "-n", "--contains", "--merged", "--no-merged", "--sort", "--format", "--points-at"),
+             "remote": ("-v", "--verbose", "show", "get-url"), "stash": ("list", "show"),
+             "config": ("--get", "--get-all", "--get-regexp", "--list", "-l", "--show-origin", "--show-scope")}
+
+
+def git_reads(args: list[str]) -> bool:
+    sub = git_command(args)
+    if sub in GIT_READS:
+        return True
+    if sub not in GIT_LISTS:
+        return False
+    rest = args[args.index(sub) + 1:]
+    kinds = GIT_LISTS[sub]
+    if sub in ("branch", "tag"):
+        return all(a.split("=", 1)[0] in kinds or (not a.startswith("-") and sub == "tag" and "-l" in rest) for a in rest)
+    if sub == "remote":
+        return not rest or rest[0] in kinds
+    return bool(rest) and rest[0] in kinds
 
 
 def git_command(args: list[str]) -> str | None:

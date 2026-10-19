@@ -1289,8 +1289,10 @@ def call(board: Board, me: str, name: str, a: dict):
                 raise ValueError("only the leader answers questions: send it to 'leader'")
             if not text.strip() or len(text) > 20000:
                 raise ValueError("text must be 1-20000 characters")
-            r = board.request("questions", me, {"question": text, "task": task, "answer": None, "options": [o.strip() for o in options],
-                                                **({"gist": short} if short else {})})
+            with board.locked():
+                until = board.user_window()
+                r = board.request("questions", me, {"question": text, "task": task, "answer": None, "options": [o.strip() for o in options],
+                                                    **({"gist": short} if short else {}), **({"user_until": until} if until else {})})
             timeout = board.live_cfg()["question_timeout_s"]
             r = board.wait("questions", r["id"], timeout)
             return {"answer": r["answer"]} if r["state"] == "answered" else {"answer": None, "note": f"no answer from the leader within {timeout} s"}

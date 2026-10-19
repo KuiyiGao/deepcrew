@@ -1,6 +1,6 @@
 {
   "name": "deepcrew",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": { "name": "KuiyiGao" },
   "description": "The /deepcrew skill to lead a crew, the crew's requests answered above your prompt, and /crew to see the whole crew",
   "types": "./types/index.d.ts",

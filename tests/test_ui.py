@@ -91,6 +91,21 @@ def test_state_lists_choices_and_never_the_key(page):
     assert stat.S_IMODE(providers.ENV_FILE.stat().st_mode) == 0o600
 
 
+def test_the_page_offers_every_ready_provider_and_adds_one_once_its_key_is_saved_or_it_is_chosen(page):
+    toml = providers.CONFIG_DIR / "providers.toml"
+    state = page.call("GET", "/api/state")[2]
+    assert state["providers"] == ["deepseek", *sorted(providers.TEMPLATES)] and state["labels"]["zai"] == "Z.ai (GLM)"
+    status, _, zai = page.call("GET", "/api/state?provider=zai")
+    assert (status, zai["provider"], zai["key"]["found"], zai["key"]["endpoint"]) == (200, "zai", False, "https://api.z.ai/api/anthropic")
+    assert zai["models"] == ["glm-5.3-flash[1m]", "glm-5.3[1m]"] and not toml.exists() and providers.known() == ["deepseek"]
+    status, _, zai = page.call("POST", "/api/key", {"key": "zai-" + "k" * 20, "provider": "zai"})
+    assert (status, zai["key"]["found"], zai["key"]["source"]) == (200, True, "dotenv:ZAI_API_KEY") and "zai" in providers.known()
+    assert "zai-" + "k" * 20 not in json.dumps(zai)
+    assert page.call("POST", "/api/save", {"values": {"DEEPCREW_PROVIDER": "minimax"}})[0] == 200
+    assert "minimax" in providers.known() and providers.setting("DEEPCREW_PROVIDER") == "minimax"
+    assert page.call("GET", "/api/state?provider=nobody")[0] == 400
+
+
 def test_the_state_says_what_a_setting_that_is_not_set_stands_for(page):
     limits = {f"DEEPCREW_{k.upper()}": str(v) for k, v in cli.DEFAULTS.items()}
     assert page.call("GET", "/api/state")[2]["defaults"] == {**limits, "DEEPCREW_ALLOW": presets.SCOPES["standard"]["values"]["DEEPCREW_ALLOW"],
@@ -379,16 +394,17 @@ def test_the_page_is_named_after_the_extensions_that_add_a_tab(monkeypatch):
     assert ui.tab_names() == ["alpha", "zeta"] and cli.ui_label() == "team call, alpha, zeta"
 
 
-def test_the_page_has_the_live_view_of_its_own_and_an_extension_of_the_same_name_stands_in_for_it(tmp_path):
+def test_the_page_has_the_live_view_and_the_tools_of_its_own_and_an_extension_of_the_same_name_stands_in_for_one(tmp_path):
     own = ui.builtin_pages(tmp_path, "t")
-    assert [e.name for e in own] == ["live"] and own[0].routes and own[0].streams and b"</script>" in own[0].html
+    assert [e.name for e in own] == ["live", "tools"] and own[0].routes and own[0].streams and b"</script>" in own[0].html
+    assert own[1].html == b"" and set(own[1].routes) == {("GET", "/api/tools/list"), ("POST", "/api/tools/mcp"), ("POST", "/api/tools/skill")}
 
     class StandIn(ui.Extension):
         name = "live"
 
     other, stand_in = Demo([]), StandIn()
-    assert ui.with_builtin(own, [other]) == [own[0], other]
-    assert ui.with_builtin(own, [stand_in, other]) == [stand_in, other]
+    assert ui.with_builtin(own, [other]) == [*own, other]
+    assert ui.with_builtin(own, [stand_in, other]) == [own[1], stand_in, other]
 
 
 def test_serve_ends_the_extensions_on_the_timeout_too():
@@ -966,3 +982,27 @@ def test_the_page_has_the_requests_strip_above_the_settings(page):
     assert 'data-key="DEEPCREW_PROPOSE_AFTER_S"' not in text
     assert "Waiting for you" in text and "/api/requests" in text and "deepcrew:changed" in text and "<nav" not in text
     assert '<span class="tag" id="waiting-n" aria-live="polite">' in text and '<div id="waiting-list" tabindex="-1">' in text
+
+
+def test_the_tools_section_lists_the_member_tools_and_adds_and_removes_servers_and_skills(project, monkeypatch):
+    from deepcrew import browser
+    monkeypatch.setattr(browser, "find", lambda: None)
+    (project / ".mcp.json").write_text(json.dumps({"mcpServers": {"files": {"command": "tool", "args": ["x"]}}}))
+    (project / ".claude" / "skills" / "greet").mkdir(parents=True)
+    (project / ".claude" / "skills" / "greet" / "SKILL.md").write_text("---\nname: greet\ndescription: Greets.\n---\nHello.\n")
+    tools = ui.Tools(project)
+    view = tools.view()
+    assert [t["name"] for t in view["own"]] == ["message"] and "Skill" not in [t["name"] for t in view["native"]]
+    assert [t["name"] for t in view["native"] if t["optional"]] == list(settings.OPTIONAL_TOOLS) and all(t["what"] for t in view["native"])
+    assert [c["name"] for c in view["mcp_found"]] == ["files"] and [c["name"] for c in view["skills_found"]] == ["greet"]
+    got = tools.routes[("POST", "/api/tools/skill")]({"name": "greet"}, {})
+    assert got["done"] == "added skill greet from the project's .claude/skills/greet" and got["skills_found"][0]["given"]
+    assert "Skill" in [t["name"] for t in got["native"]]
+    got = tools.routes[("POST", "/api/tools/mcp")]({"name": "files"}, {})
+    assert [(r["name"], r["ok"]) for r in got["mcp"]] == [("files", True)] and got["mcp_found"][0]["given"]
+    with pytest.raises(ui.Refused, match="no MCP server named 'nope'"):
+        tools.routes[("POST", "/api/tools/mcp")]({"name": "nope"}, {})
+    got = tools.routes[("POST", "/api/tools/mcp")]({"name": "files", "remove": True}, {})
+    assert (got["mcp"], got["done"], got["notes"]) == ([], "removed MCP server files", [])
+    with pytest.raises(ui.Refused, match="name: the skill"):
+        tools.routes[("POST", "/api/tools/skill")]({}, {})

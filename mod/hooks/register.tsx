@@ -8,6 +8,7 @@ const POLL_MS = 3000
 const RUN_MS = 30000
 const IDLE_POLLS = 5
 const SHOWN = 160
+const PAGE_MAX = 19000
 const crew = atom({ plugin: 'deepcrew', key: 'crew' } as const, null)
 const told = atom({ plugin: 'deepcrew', key: 'told' } as const, [])
 
@@ -30,6 +31,7 @@ type Status = {
   budget?: { usd?: number | null; spent?: number | null }
   paused?: unknown
   page_url?: string | null
+  user_messages?: number
 }
 type Answer = { id: string; allow?: boolean; always?: boolean; option?: number }
 type Site = Parameters<EngineInterface['ui']['resolve']>[0]
@@ -109,6 +111,12 @@ type Settings = { command: string; team: string }
 let busy = false
 let quiet = 0
 let found: string | null = null
+let waiting = 0
+let handing = false
+const handed = new Set<string>()
+let pageTurn: string | null = null
+let current: string | null = null
+let sentByLeader = false
 
 async function deepcrew($: EngineInterface, cfg: Settings, args: string[]): Promise<ProcessRunResult | null> {
   const home = await $.env.get('HOME')
@@ -132,9 +140,39 @@ async function look($: EngineInterface, cfg: Settings): Promise<DeepcrewCrew | n
     return null
   }
   try {
-    return crewOf(JSON.parse(out.stdout) as Status, cfg.team)
+    const s = JSON.parse(out.stdout) as Status
+    waiting = s.user_messages ?? 0
+    return crewOf(s, cfg.team)
   } catch {
     return null
+  }
+}
+
+function fromThePage(team: string, texts: string[]): string {
+  const quoted = texts.map(t => t.replace(/^/gm, '> ')).join('\n\n')
+  return (
+    `On the team page the user wrote to you, the leader of team ${team}:\n\n${quoted}\n\n` +
+    'Answer as you would in this chat. Your answer is shown on the team page too, so there is no need to send it there.'
+  )
+}
+
+async function handOver($: EngineInterface, cfg: Settings): Promise<void> {
+  if (handing || waiting === 0) {
+    return
+  }
+  handing = true
+  try {
+    const out = await deepcrew($, cfg, ['inbox', '--from-user', '--json', '--team', cfg.team])
+    const messages = out?.exitCode === 0 ? ((JSON.parse(out.stdout) as { messages?: { text?: string }[] }).messages ?? []) : []
+    const texts = messages.map(m => String(m.text ?? '').trim()).filter(Boolean)
+    if (texts.length) {
+      const text = fromThePage(cfg.team, texts)
+      handed.add(text)
+      await $.prompt.submit({ text })
+    }
+  } catch {
+  } finally {
+    handing = false
   }
 }
 
@@ -148,6 +186,9 @@ async function refresh($: EngineInterface, cfg: Settings): Promise<DeepcrewCrew 
   $.ui.status(now ? summary(now) : undefined)
   for (const a of fresh.slice(0, 3)) {
     $.ui.toast(`DeepCrew: ${a.member} ${a.text}`)
+  }
+  if (now && waiting > 0) {
+    void handOver($, cfg)
   }
   return now
 }
@@ -255,6 +296,38 @@ export const register: Register = (on, options) => {
     $.clock.every(POLL_MS, () => poll($, cfg))
     poll($, cfg)
     return next(e)
+  })
+
+  on('turn.start', ($, e, next) => {
+    if (e.agentId === undefined) {
+      current = e.turnId
+      const mine = [...handed].find(t => e.text.includes(t))
+      if (mine !== undefined) {
+        handed.delete(mine)
+        pageTurn = e.turnId
+        sentByLeader = false
+      }
+    }
+    return next(e)
+  })
+
+  on('tool.call', { tool: 'Bash' }, ($, e, next) => {
+    if (current !== null && current === pageTurn && /\bsend\s+user\b/.test(e.command)) {
+      sentByLeader = true
+    }
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const out = await next(e)
+    if (e.agentId === undefined && e.turnId === pageTurn) {
+      pageTurn = null
+      const text = e.reason === 'answer' ? e.answer.trim() : ''
+      if (text && !sentByLeader) {
+        void deepcrew($, cfg, ['send', 'user', text.length > PAGE_MAX ? `${text.slice(0, PAGE_MAX - 3)}...` : text, '--team', cfg.team])
+      }
+    }
+    return out
   })
 
   on('command.run', { command: 'crew' }, async ($, e) => {

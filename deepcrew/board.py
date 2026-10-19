@@ -46,6 +46,8 @@ LOCK_STALE_S, LOCK_WAIT_S = 10.0, 5.0
 LOCK_RETRY_S = 0.02
 LOCK_POLL_S = 0.01
 REQUEST_POLL_S = 0.25
+USER_FIRST_S, USER_OPEN_MAX, USER_GAP_S, PAGE_SEEN_S = 120.0, 2, 45.0, 15.0
+PAGE_SEEN = "page.seen"
 
 
 def state_home() -> Path:
@@ -903,6 +905,27 @@ class Board:
              "state": "pending", "by": None, **payload}
         write_json(self.dir / kind / f"{r['id']}.json", r)
         return r
+
+    def page_watched(self, now: float | None = None) -> bool:
+        try:
+            return (time.time() if now is None else now) - (self.dir / "run" / PAGE_SEEN).stat().st_mtime < PAGE_SEEN_S
+        except OSError:
+            return False
+
+    def user_window(self, now: float | None = None) -> float | None:
+        now = time.time() if now is None else now
+        if not self.page_watched(now):
+            return None
+        firsts = [q for q in _load(sorted((self.dir / "questions").glob("*.json"))) if q.get("user_until")]
+        if sum(q["state"] == "pending" and q["user_until"] > now for q in firsts) >= USER_OPEN_MAX:
+            return None
+        if firsts and now - (max(q["user_until"] for q in firsts) - USER_FIRST_S) < USER_GAP_S:
+            return None
+        return now + USER_FIRST_S
+
+    def for_leader(self, kind: str, now: float | None = None) -> list[dict]:
+        now = time.time() if now is None else now
+        return [r for r in self.pending(kind) if not (r.get("user_until") or 0) > now]
 
     def pending(self, kind: str) -> list[dict]:
         return [r for r in _load(sorted((self.dir / kind).glob("*.json"))) if r["state"] == "pending"]

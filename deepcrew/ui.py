@@ -56,9 +56,17 @@ def _pick(name=None) -> dict:
     if name is None:
         saved = providers.setting("DEEPCREW_PROVIDER")
         name = saved if saved in providers.known() else DEFAULT_PROVIDER
-    if name not in providers.known():
-        raise Refused(f"unknown provider {name!r}; known: {', '.join(providers.known())}")
-    return providers.load(name)
+    if name not in providers.offered():
+        raise Refused(f"unknown provider {name!r}; known: {', '.join(providers.offered())}")
+    return providers.load(name, ready=True)
+
+
+def _adopt(name) -> None:
+    if isinstance(name, str) and name in providers.TEMPLATES and name not in providers.known():
+        try:
+            providers.add_template(name)
+        except providers.ProviderError as e:
+            raise Refused(str(e)) from None
 
 
 class TeamLink:
@@ -88,7 +96,8 @@ def state(provider=None, link: TeamLink | None = None) -> dict:
     from . import settings
     p = _pick(provider)
     source = providers.key_source(p)
-    return {"provider": p["name"], "providers": providers.known(), "models": list(p["models"]), "efforts": [*p["efforts"], "default"],
+    return {"provider": p["name"], "providers": providers.offered(), "labels": providers.LABELS, "models": list(p["models"]),
+            "efforts": [*p["efforts"], "default"],
             "values": {k: v for k in KEYS if (v := providers.setting(k))}, "defaults": defaults(),
             "key": {"found": source is not None, "source": providers.shown(source), "where": settings.key_place(p), "endpoint": p["base_url"]},
             **presets.tables(p), "keychain": use_keychain(p), "env_file": providers.shown(providers.ENV_FILE),
@@ -171,8 +180,8 @@ def checked(values) -> dict[str, str]:
         if not isinstance(raw, str):
             raise Refused(f"{key} must be text")
         out[key] = raw.strip()
-    if "DEEPCREW_PROVIDER" in out and out["DEEPCREW_PROVIDER"] not in providers.known():
-        raise Refused(f"DEEPCREW_PROVIDER must be one of: {', '.join(providers.known())}")
+    if "DEEPCREW_PROVIDER" in out and out["DEEPCREW_PROVIDER"] not in providers.offered():
+        raise Refused(f"DEEPCREW_PROVIDER must be one of: {', '.join(providers.offered())}")
     if out.keys() & {"DEEPCREW_PROVIDER", "DEEPCREW_MODEL", "DEEPCREW_EFFORT"}:
         p = _pick(out.get("DEEPCREW_PROVIDER"))
         for key, allowed in (("DEEPCREW_MODEL", p["models"]), ("DEEPCREW_EFFORT", [*p["efforts"], "default"])):
@@ -225,6 +234,7 @@ def _followed(result: dict, link: TeamLink | None, keys) -> dict:
 def save(values, link: TeamLink | None = None) -> dict:
     clean = checked(values)
     if clean:
+        _adopt(clean.get("DEEPCREW_PROVIDER"))
         providers.env_file_set(clean)
     return _followed(state(link=link), link, clean)
 
@@ -256,6 +266,8 @@ def store_key(key, provider=None) -> dict:
     p = _pick(provider)
     if not providers.valid_key(p, key.strip()):
         raise Refused("that does not look like a key for this provider; nothing was stored")
+    _adopt(p["name"])
+    p = providers.load(p["name"])
     (providers.store_keychain if use_keychain(p) else providers.store_env_file)(p, key.strip())
     return state(provider)
 
@@ -434,9 +446,62 @@ def load_extensions(project: Path, team: str | None) -> list[Extension]:
     return found
 
 
+NATIVE = {"Agent": "Starts a helper agent inside the member", "Bash": "Shell commands, through the team's approvals",
+          "Read": "Reads files", "Edit": "Edits files in the member's region", "Write": "Writes files in the member's region",
+          "Glob": "Finds files by name", "Grep": "Searches file contents", "NotebookEdit": "Edits Jupyter notebooks",
+          "WebFetch": "Reads a web page", "WebSearch": "Searches the web; the provider runs it", "TaskOutput": "Reads a background command's output",
+          "TaskStop": "Stops a background command", "TaskCreate": "The team's task list", "TaskGet": "The team's task list",
+          "TaskList": "The team's task list", "TaskUpdate": "The team's task list", "Skill": "Uses the skills given below"}
+
+
+class Tools(Extension):
+    name = "tools"
+
+    def __init__(self, project: Path):
+        super().__init__()
+        self.project = Path(project)
+        self.routes = {("GET", "/api/tools/list"): lambda body, query: self.view(), ("POST", "/api/tools/mcp"): self._mcp,
+                       ("POST", "/api/tools/skill"): self._skill}
+
+    def view(self) -> dict:
+        from . import browser, member, settings, toolkit
+        skills = toolkit.skill_list(self.project)
+        native = [*settings.DEFAULT_TOOLS, *(["Skill"] if skills else [])]
+        own = [t for t in member.TOOLS if t["name"] != "approve"] + ([member.SCREENSHOT] if browser.find() else [])
+        return {"native": [{"name": t, "optional": t in settings.OPTIONAL_TOOLS, "what": NATIVE.get(t, "")} for t in native],
+                "own": [{"name": t["name"], "what": t["description"].split(". ")[0]} for t in own],
+                "mcp": [{**r, "command": providers.shown(r["command"])} for r in toolkit.mcp_list(self.project)],
+                "mcp_found": [{**c, "command": providers.shown(c["command"])} for c in toolkit.mcp_candidates(self.project)],
+                "skills": skills, "skills_found": toolkit.skill_candidates(self.project)}
+
+    def _change(self, body: dict, add, remove, what: str) -> dict:
+        name = body.get("name")
+        if not isinstance(name, str) or not name:
+            raise Refused(f"name: the {what} to add or remove")
+        try:
+            if body.get("remove"):
+                remove(self.project, name)
+                done, notes = f"removed {what} {name}", []
+            else:
+                got = add(self.project, name)
+                done = f"added {what} {name} from {got['source']}"
+                notes = [*got.get("notes", []), *([f"members do not get its {', '.join(got['dropped'])}"] if got.get("dropped") else [])]
+        except ValueError as e:
+            raise Refused(providers.shown(str(e))) from None
+        return {**self.view(), "done": providers.shown(done), "notes": [providers.shown(n) for n in notes]}
+
+    def _mcp(self, body: dict, query: dict) -> dict:
+        from . import toolkit
+        return self._change(body, toolkit.add_mcp, toolkit.remove_mcp, "MCP server")
+
+    def _skill(self, body: dict, query: dict) -> dict:
+        from . import toolkit
+        return self._change(body, toolkit.add_skill, toolkit.remove_skill, "skill")
+
+
 def builtin_pages(project: Path, team: str | None) -> list[Extension]:
     from . import live
-    return [live.page(project, team)]
+    return [live.page(project, team), Tools(project)]
 
 
 def with_builtin(own: list[Extension], exts: list[Extension]) -> list[Extension]:

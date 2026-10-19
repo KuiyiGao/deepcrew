@@ -73,11 +73,13 @@ def widened_words(w: dict) -> str:
         return f"members reach {w.get('value')} without asking"
     if w.get("kind") == "tool":
         return f"members use {w.get('value')} without asking"
+    if w.get("kind") == "prefix":
+        return str(w.get("text") or "added to the team allowlist")
     return "added to the team allowlist"
 
 
 def inbox_items(board: Board) -> dict:
-    reqs, asks, plan, tasks = with_widening(board, board.pending("perms")), board.pending("questions"), route.plan(board), board.tasks()
+    reqs, asks, plan, tasks = with_widening(board, board.pending("perms")), board.for_leader("questions"), route.plan(board), board.tasks()
     by_user = [r for kind in ("perms", "questions") for r in _answered_by_user(board, kind)]
     finished = bool(tasks) and all(t["state"] in ("done", "cancelled") for t in tasks) and not any(m.get("task") for m in board.members())
     items = {f"perm:{r['id']}": ("perm", r) for r in reqs} | {f"question:{q['id']}": ("question", q) for q in asks}

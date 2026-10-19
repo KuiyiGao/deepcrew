@@ -84,6 +84,7 @@ button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accen
   padding: 4px 8px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; pointer-events: none; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
 .row input { flex: 1 1 220px; margin-top: 0; }
+.row select { flex: 0 1 auto; width: auto; max-width: 220px; margin-top: 0; }
 .row .hint { align-self: center; margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 12px; }
 .presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 8px; }
@@ -98,6 +99,42 @@ button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accen
 .tag.ok { color: var(--good); }
 .tag.bad { color: var(--bad); }
 .tag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+.tl-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: start; padding: 5px 0; }
+.tl-k { font: var(--t-body); color: var(--muted); padding-top: 4px; cursor: default; }
+.tl-chips, .tl-cards { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.tl-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; font: var(--t-body); border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--fg); }
+.tl-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 18%, transparent); flex: none; }
+.tl-chip.fixed { color: var(--muted); cursor: default; }
+.tl-chip.fixed i { background: color-mix(in srgb, var(--good) 55%, var(--muted)); box-shadow: none; }
+.tl-chip.own i { background: var(--accent); }
+button.tl-chip[aria-pressed=false] { color: var(--muted); border-style: dashed; }
+button.tl-chip[aria-pressed=false] i { background: none; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.tl-card { display: inline-flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); max-width: 100%; }
+.tl-card .tl-i { width: 16px; height: 16px; flex: none; color: var(--a-sea); }
+.tl-card.skill .tl-i { color: var(--a-gold); }
+.tl-card b { font: var(--t-body); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-card .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
+.tl-card.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
+.tl-card.bad .dot { background: var(--bad); }
+.tl-card button, .tl-add button { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; background: none; color: var(--muted); }
+.tl-card button:hover:not(:disabled) { color: var(--bad); }
+.tl-card button svg, .tl-add button svg { width: 14px; height: 14px; }
+.tl-i svg { display: block; width: 100%; height: 100%; }
+.tl-add { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 4px; border: 1px dashed var(--line); border-radius: 8px; }
+.tl-add select { width: auto; max-width: 220px; margin: 0; padding: 3px 6px; font: var(--t-body); border: 0; background: none; color: var(--muted); }
+.tl-add button:hover:not(:disabled) { color: var(--accent); }
+.tl-add.none { padding: 4px 10px; color: var(--muted); font: var(--t-body); cursor: default; }
+@media (max-width: 480px) { .tl-row { grid-template-columns: 1fr; gap: 4px; } .tl-k { padding-top: 0; } }
+.auto { display: flex; align-items: center; gap: 14px; margin: 0 0 10px; padding: 12px 16px; color: var(--fg); background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; cursor: pointer; transition: border-color .2s, background-color .2s; }
+.auto b { font: var(--t-section-serif); }
+.auto input { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 56px; height: 32px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: color-mix(in srgb, var(--muted) 40%, var(--line)); transition: background-color .2s; }
+.auto input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .22s var(--ease); }
+.auto input:checked { background: var(--good); }
+.auto input:checked::after { transform: translateX(24px); }
+.auto:has(input:checked) { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 7%, var(--card)); }
 details { margin-top: 4px; }
 summary { cursor: pointer; color: var(--muted); margin-bottom: 10px; }
 details::details-content { block-size: 0; opacity: 0; overflow-y: clip; transition: block-size .28s var(--ease), opacity .2s, content-visibility .28s allow-discrete; }
@@ -307,6 +344,7 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
     <h2>API key <span class="tag" id="keystatus"></span></h2>
     <form id="keyform" autocomplete="off">
       <div class="row">
+        <select id="provider" data-key="DEEPCREW_PROVIDER" aria-label="Provider" title="The provider the crew runs on: its key, models and prices"></select>
         <input id="key" type="password" autocomplete="new-password" spellcheck="false" placeholder="Paste a key" aria-label="API key">
         <button type="submit">Save key</button>
         <button type="button" id="check">Check</button>
@@ -331,7 +369,6 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
     <details>
       <summary>Custom</summary>
       <div class="grid">
-        <label>Provider <select id="provider" data-key="DEEPCREW_PROVIDER"></select></label>
         <label>Model <select id="model" data-key="DEEPCREW_MODEL"></select></label>
         <label>Effort <select id="effort" data-key="DEEPCREW_EFFORT"></select></label>
         <label title="Claude Code asks the model to think before it answers; off is faster and writes fewer tokens">Thinking
@@ -344,11 +381,12 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
 
   <section>
     <h2 title="What members' shell commands may do. File writes always stay in the member's own region.">Permissions</h2>
+    <label class="auto" id="auto" title="On: members' shell commands run in a sandbox and without asking, unless they reach outside it (git that changes the repository, a publish or login, deleting what is not theirs). Off: no sandbox; the reviewer and the leader approve commands.">
+      <input type="checkbox" role="switch" id="auto-box" data-key="DEEPCREW_SANDBOX"><b>Auto</b></label>
     <div class="presets" id="scopes"></div>
     <p class="msg" id="m-scope" role="status"></p>
     <details>
       <summary>Advanced</summary>
-      <label class="switch"><input type="checkbox" role="switch" data-key="DEEPCREW_SANDBOX"> Sandbox</label>
       <label class="switch" title="A cheap model on your provider looks at each shell command that would ask first: routine work on the project runs, everything else still comes to you or the leader"><input type="checkbox" role="switch" data-key="DEEPCREW_REVIEW"> Reviewer</label>
       <label title="Empty: package registries. none: no network. Otherwise host names, comma-separated.">Network
         <input type="text" data-key="DEEPCREW_SANDBOX_DOMAINS" placeholder="package registries">
@@ -357,6 +395,16 @@ html.paused *, html.paused *::before, html.paused *::after { animation-play-stat
         <input type="text" data-key="DEEPCREW_ALLOW" placeholder="none">
       </label>
     </details>
+  </section>
+
+  <section id="tools">
+    <h2 title="What members work with. A change reaches member processes started from now on.">Tools</h2>
+    <input type="hidden" id="tools-off" data-key="DEEPCREW_TOOLS_OFF">
+    <div class="tl-row"><b class="tl-k" title="Claude Code's own tools. The dimmed ones are part of how the team works and stay on.">Built in</b><div class="tl-chips" id="tl-native"></div></div>
+    <div class="tl-row"><b class="tl-k" title="deepcrew's own tools for the team">deepcrew</b><div class="tl-chips" id="tl-own"></div></div>
+    <div class="tl-row"><b class="tl-k" title="Your MCP servers, given to every member of this project's teams. They run outside the sandbox with your rights, and every call of their tools asks first until you allow it.">MCP</b><div class="tl-cards" id="tl-mcp"></div></div>
+    <div class="tl-row"><b class="tl-k" title="Your skills, given to every member of this project's teams. Members get a copy taken when you add one.">Skills</b><div class="tl-cards" id="tl-skill"></div></div>
+    <p class="msg" id="m-tools" role="status"></p>
   </section>
 
   <section>
@@ -834,8 +882,8 @@ function refusal(message) {
   return name ? name + message.slice(key.length) : message;
 }
 
-function options(select, items, chosen) {
-  if ([...select.options].map((o) => o.value).join("\n") !== items.join("\n")) select.replaceChildren(...items.map((item) => new Option(item, item)));
+function options(select, items, chosen, labels) {
+  if ([...select.options].map((o) => o.value).join("\n") !== items.join("\n")) select.replaceChildren(...items.map((item) => new Option((labels || {})[item] || item, item)));
   if (items.includes(chosen)) select.value = chosen;
 }
 
@@ -851,6 +899,7 @@ function fill(values, onlyGiven) {
   }
   const now = form();
   for (const el of fields) if (!onlyGiven || el.dataset.key in values) filled[el.dataset.key] = now[el.dataset.key];
+  paintTools();
 }
 
 function form() {
@@ -942,7 +991,7 @@ function render(s) {
   if (!$("#team-skeleton").hidden) sizeSkeleton();
   $("#doneHint").textContent = team ? "Done tells the leader you are finished." : "Applies to teams created from now on.";
   defaults = s.defaults || {};
-  options($("#provider"), s.providers, s.provider);
+  options($("#provider"), s.providers, s.provider, s.labels);
   options($("#model"), s.models, s.values.DEEPCREW_MODEL);
   options($("#effort"), s.efforts, s.values.DEEPCREW_EFFORT || "default");
   for (const kind of [...KINDS, "setup"]) presetButtons(kind, s[kind + "s"]);
@@ -960,20 +1009,29 @@ async function refresh() {
   try { render(await api("/api/state")); } catch (_) { }
 }
 
-async function save() {
+async function save(line = "m-save") {
   const values = edits();
   try {
     const reply = await api("/api/save", {values});
     Object.assign(filled, values);
     refusal("");
-    say("m-save", "Saved ✓" + teamLine(reply));
+    say(line, "Saved ✓" + teamLine(reply));
     changed();
     return true;
   } catch (e) {
-    say("m-save", refusal(e.message), true);
+    say(line, refusal(e.message), true);
     return false;
   }
 }
+
+let autoSave = 0;
+document.addEventListener("change", (event) => {
+  const el = event.target;
+  if (!fields.includes(el) || ["auto-box", "tools-off", "provider"].includes(el.id)) return;
+  const line = (el.closest("section") || document).querySelector(".msg");
+  clearTimeout(autoSave);
+  autoSave = setTimeout(() => { if (Object.keys(edits()).length) save(line && line.id ? line.id : "m-save"); }, 250);
+});
 
 $("#keyform").onsubmit = async (event) => {
   event.preventDefault();
@@ -1009,8 +1067,11 @@ $("#provider").onchange = async () => {
     const s = await api("/api/state?provider=" + encodeURIComponent($("#provider").value));
     options($("#model"), s.models);
     options($("#effort"), s.efforts, "default");
+    for (const kind of [...KINDS, "setup"]) presetButtons(kind, s[kind + "s"]);
     keychain = s.keychain;
     showKey(s.key, s.provider);
+    markActive();
+    await save("m-key");
   } catch (e) {
     say("m-save", e.message, true);
   }
@@ -1551,6 +1612,109 @@ $("#crew-stop").onclick = (event) => crewAction("rest", event.currentTarget);
 $("#crew-resume").onclick = (event) => crewAction("resume", event.currentTarget);
 document.addEventListener("deepcrew:changed", loadTeam);
 document.addEventListener("visibilitychange", () => { if (document.hidden) clearTimeout(teamTimer); else loadTeam(); });
+
+$("#auto-box").addEventListener("change", async () => {
+  const box = $("#auto-box"), value = box.checked ? "on" : "off";
+  markActive();
+  try {
+    const reply = await api("/api/save", {values: {DEEPCREW_SANDBOX: value}});
+    filled.DEEPCREW_SANDBOX = value;
+    say("m-scope", "Auto " + value + " ✓" + teamLine(reply));
+    changed();
+  } catch (e) {
+    box.checked = !box.checked;
+    markActive();
+    say("m-scope", refusal(e.message), true);
+  }
+});
+
+const TOOL_SVG = {
+  plug: ["M9 3v5M15 3v5", "M6 8h12v3a6 6 0 0 1-12 0z", "M12 17v4"],
+  book: ["M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z", "M5 19.5A1.5 1.5 0 0 0 6.5 21H19", "M9 7.5h6"],
+  x: ["M6 6l12 12M18 6L6 18"], plus: ["M12 5v14M5 12h14"],
+};
+function glyph(name, cls) {
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+  for (const [k, v] of Object.entries({viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round"})) svg.setAttribute(k, v);
+  for (const d of TOOL_SVG[name]) { const path = document.createElementNS(NS, "path"); path.setAttribute("d", d); svg.append(path); }
+  return h("span", {class: cls || "tl-i", "aria-hidden": "true"}, svg);
+}
+let tools = null;
+const toolsOff = () => $("#tools-off").value.split(",").map((t) => t.trim()).filter(Boolean);
+
+function paintTools() {
+  if (!tools) return;
+  const off = new Set(toolsOff());
+  $("#tl-native").replaceChildren(...tools.native.map((t) => t.optional
+    ? h("button", {type: "button", class: "tl-chip", "aria-pressed": String(!off.has(t.name)), onclick: () => switchTool(t.name),
+        title: t.what + (off.has(t.name) ? ". Off: members do not get it" : ". On: click to take it off")}, h("i"), t.name)
+    : h("span", {class: "tl-chip fixed", title: t.what}, h("i"), t.name)));
+  $("#tl-own").replaceChildren(...tools.own.map((t) => h("span", {class: "tl-chip fixed own", title: t.what}, h("i"), t.name)));
+  toolCards("mcp", tools.mcp, tools.mcp_found, "plug", (r) => [r.command, r.pinned.length ? "Pinned: " + r.pinned.join(", ") : ""]);
+  toolCards("skill", tools.skills, tools.skills_found, "book", (r) => [r.description, r.files + (r.files === 1 ? " file" : " files")]);
+}
+
+function toolCards(kind, given, found, icon, lines) {
+  const what = kind === "mcp" ? "MCP server" : "skill";
+  const cards = given.map((r) => h("span", {class: "tl-card " + kind + (r.ok ? "" : " bad"), title: [r.name, ...lines(r), r.ok ? "" : "Left out: " + r.why].filter(Boolean).join("\n")},
+    glyph(icon), h("b", {}, r.name), h("i", {class: "dot"}),
+    h("button", {type: "button", "aria-label": "Remove " + what + " " + r.name, title: "Remove", onclick: (e) => changeTool(kind, r.name, true, e.currentTarget)}, glyph("x", "tl-x"))));
+  const left = found.filter((c) => !c.given);
+  if (left.length) {
+    const pick = h("select", {"aria-label": "Add a " + what}, new Option("Add…", ""), ...left.map((c) => {
+      const o = new Option(c.name, c.name); o.title = [c.where, c.command || c.description].filter(Boolean).join("\n"); return o; }));
+    const add = h("button", {type: "button", "aria-label": "Add", title: "Add", disabled: true}, glyph("plus", "tl-x"));
+    pick.onchange = () => { add.disabled = !pick.value; };
+    add.onclick = () => pick.value && changeTool(kind, pick.value, false, add);
+    cards.push(h("span", {class: "tl-add"}, pick, add));
+  } else {
+    cards.push(h("span", {class: "tl-add none", title: kind === "mcp"
+      ? "Nothing more in the project's .mcp.json or in your Claude Code settings. From another file: deepcrew mcp NAME --from FILE"
+      : "Nothing more in the project's .claude/skills or in ~/.claude/skills. From another folder: deepcrew skill NAME --from DIR"}, "—"));
+  }
+  $("#tl-" + kind).replaceChildren(...cards);
+}
+
+async function loadTools() {
+  try {
+    const got = await api("/api/tools/list");
+    if (Array.isArray(got.native)) { tools = got; paintTools(); }
+  } catch (e) { say("m-tools", e.message, true); }
+}
+
+async function switchTool(name) {
+  const off = new Set(toolsOff());
+  if (off.has(name)) off.delete(name); else off.add(name);
+  const value = [...off].join(","), field = $("#tools-off"), before = field.value;
+  field.value = value;
+  paintTools();
+  try {
+    const reply = await api("/api/save", {values: {DEEPCREW_TOOLS_OFF: value}});
+    filled.DEEPCREW_TOOLS_OFF = value;
+    say("m-tools", name + (off.has(name) ? " off" : " on") + " ✓" + teamLine(reply));
+    changed();
+  } catch (e) {
+    field.value = before;
+    paintTools();
+    say("m-tools", refusal(e.message), true);
+  }
+}
+
+async function changeTool(kind, name, remove, button) {
+  if (button) button.disabled = true;
+  try {
+    const got = await api("/api/tools/" + kind, {name, remove});
+    if (Array.isArray(got.native)) tools = got;
+    paintTools();
+    say("m-tools", [String(got.done || "").charAt(0).toUpperCase() + String(got.done || "").slice(1) + " ✓", ...(got.notes || [])].join(". "));
+  } catch (e) {
+    if (button) button.disabled = false;
+    say("m-tools", e.message, true);
+  }
+}
+
+addEventListener("focus", () => { if (tools) loadTools(); });
+loadTools();
 
 addEventListener("focus", refresh);
 addEventListener("deepcrew-env", refresh);

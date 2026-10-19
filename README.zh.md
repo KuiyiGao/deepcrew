@@ -176,6 +176,7 @@ plugin 里带着 `/deepcrew` skill，Claude Code 2.1.287 及以上还会多一�
 - 权限分三种：locked 开沙箱、不联网，只有读文件不用问。standard 是默认，不开沙箱，读文件随便读，常规命令由审命令的模型放行，其余的交给 leader 批，批过一次就不再问。builder 开沙箱，能连软件包仓库，跑测试和构建都不用问。
 - 每个干活的 agent 刚启动时大约占 300 MB 内存，大家共用你的项目文件夹，不用容器也不用 worktree，闲下来的会自己退出，所以 8 GB 大约能跑 10 个，16 GB 大约 20 个，32 GB 能开到上限 32 个。
 - agent 都会读你的 `CLAUDE.md`，只对这一次生效的要求，用 `deepcrew instructions "..."` 告诉它们。
+- 回复语言：swarm 之间用英文干活，写给你的话用你选的语言。在 Team Call 或 Monitor 顶部点滑杆按钮，选 **Replies in**，或者运行 `deepcrew lang "Simplified Chinese"`。可选英文、简体中文、繁体中文、日语、韩语、西班牙语、法语、德语、葡萄牙语、意大利语和俄语。
 - 换服务商用 `deepcrew config set provider zai`，智谱 GLM 和 MiniMax 也一样。用 `deepcrew config set fallback zai,minimax` 设好备用的，正在用的那家没余额或者一直过载时就会自动切过去。别的兼容 Anthropic 接口的服务商，在 `~/.config/deepcrew/providers.toml` 里加一条就能用。
 
 <details>

@@ -20,6 +20,12 @@
 .lv-chip-s .lv-bar { width: 54px; height: 6px; }
 .lv-chip-s .lv-tank { margin-right: -2px; }
 button.lv-chip-s { cursor: pointer; } button.lv-chip-s:hover { color: var(--fg); }
+.lv-chip-s.host .gauges { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
+.lv-chip-s.host .gg { display: flex; align-items: flex-end; width: 5px; height: 14px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--muted) 22%, transparent); }
+.lv-chip-s.host .gg i { width: 100%; background: var(--good); transition: height .6s; }
+.lv-chip-s.host[data-level=busy] .gg i { background: var(--warn); }
+.lv-chip-s.host[data-level=full] .gg i { background: var(--bad); }
+.lv-chip-s.host[data-level=full] svg { color: var(--bad); }
 .lv-chip-s svg { width: 15px; height: 15px; flex: none; }
 .lv-chip-s .of { color: var(--muted); }
 .lv-chip-s.need { padding: 2px 10px 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--fg); }
@@ -209,11 +215,34 @@ body.lv-on .waiting { display: none; }
 #live .as-need .id { font: var(--t-meta); font-family: var(--mono); color: var(--muted); }
 #live .as-need .chev svg { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
 #live .as-need.open .chev svg { transform: rotate(90deg); }
-#live .as-need .act { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 14px 82px; animation: lv-in .25s var(--ease); }
+#live .as-need .act { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 14px 82px; }
 #live .as-need code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); font: var(--t-meta); font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7em; overflow: auto; }
 #live .as-need .acts { display: flex; flex-wrap: wrap; gap: 6px; }
 #live .as-need input { flex: 1 1 140px; min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 5px 10px; background: var(--card); color: var(--text); font: var(--t-body); }
 #live .as-need.flash > button { animation: lv-flash 1.2s ease-out; }
+#live .as-group { border-top: 1px solid var(--line); }
+#live .as-group > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 20px; border: 0; background: none; cursor: pointer; text-align: left; color: var(--fg); font: var(--t-body); }
+#live .as-group > button:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+#live .as-group > button .ic { display: inline-flex; color: var(--warn); } #live .as-group > button .ic svg { width: 16px; height: 16px; }
+#live .as-group > button b { font-weight: var(--fw-label); }
+#live .as-group > button .who { display: inline-flex; gap: 3px; } #live .as-group > button .who i { width: 9px; height: 9px; border-radius: 50%; background: var(--mc); }
+#live .as-group > button .chev { margin-left: auto; } #live .as-group > button .chev svg { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+#live .as-group.open > button .chev svg { transform: rotate(90deg); }
+#live .as-group > .list { padding-left: 14px; }
+#live .ring-s { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; }
+#live .ring-s circle { fill: none; stroke-width: 3; }
+#live .ring-s .track { stroke: color-mix(in srgb, var(--muted) 25%, transparent); }
+#live .ring-s .arc { stroke: var(--accent); stroke-dasharray: 100; stroke-dashoffset: 0; animation: lv-ring var(--d, 120s) linear forwards; }
+@keyframes lv-ring { to { stroke-dashoffset: 100; } }
+#live .as-fold-line > button { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0; padding: 4px 10px; border: 1px dashed var(--line-strong); border-radius: 999px; background: none;
+  color: var(--muted); font: var(--t-body); cursor: pointer; }
+#live .as-fold-line > button svg { width: 14px; height: 14px; color: var(--warn); }
+#live .as-fold-line > button .who { display: inline-flex; gap: 3px; } #live .as-fold-line > button .who i { width: 8px; height: 8px; border-radius: 50%; background: var(--mc); }
+#live .as-fold-line > ol { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+#live .lv-pop.ctx { width: 440px; max-height: 62vh; overflow: auto; }
+#live .lv-pop.ctx .full { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--t-body); }
+#live .lv-pop.ctx h4 { margin: 10px 0 4px; font: var(--t-meta); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+#live .lv-pop.ctx h4 svg { width: 14px; height: 14px; }
 
 #lv-call .cl-stage { position: relative; display: grid; grid-template-columns: auto minmax(0, 1.15fr) minmax(0, .85fr); align-items: center; gap: 10px 28px; padding: 20px 26px; min-height: 248px;
   background: radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--sc, var(--c-lead)) 14%, var(--card)), var(--card) 64%); transition: background .6s var(--ease); }
@@ -267,6 +296,21 @@ body.lv-on .waiting { display: none; }
 #lv-call .cl-screen .trow .id { color: var(--scr-mute); font-family: var(--mono); }
 #lv-call .cl-screen .trow .lv-bar { width: 70px; height: 7px; background: var(--scr-line); }
 #lv-call .cl-screen code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--scr-bar); color: var(--scr-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+#lv-call .cl-screen .body.ask { font-family: var(--font); gap: 10px; }
+#lv-call .cl-screen .ask-q { display: flex; align-items: flex-start; gap: 10px; }
+#lv-call .cl-screen .ask-q svg { width: 26px; height: 26px; flex: none; color: var(--dot-y); }
+#lv-call .cl-screen .ask-q b { font: var(--t-label); color: var(--scr-hi); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+#lv-call .cl-screen .ask-q .ring-s { width: 22px; height: 22px; margin-left: auto; flex: none; }
+#lv-call .cl-screen .ask-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#lv-call .cl-screen .ask-acts .lv-btn { padding: 4px 10px; font: var(--t-body); color: var(--scr-hi); background: var(--scr-bar); border-color: var(--scr-line); }
+#lv-call .cl-screen .ask-acts .lv-btn:hover:not(:disabled) { border-color: var(--scr-dim); }
+#lv-call .cl-screen .ask-acts .lv-btn.primary { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+#lv-call .cl-screen .ask-acts input { flex: 1 1 120px; min-width: 0; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--scr-line); background: var(--scr-bar); color: var(--scr-fg); font: var(--t-body); }
+#lv-call .cl-screen .ctx { margin-top: auto; display: block; width: 100%; padding: 6px 8px; border: 0; border-radius: 7px; background: var(--scr-bar); color: var(--scr-dim); font: var(--t-body);
+  text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-call .cl-screen .ctx:hover { color: var(--scr-hi); }
+#lv-call .cl-screen .ctx b { color: var(--scr-fg); font-weight: var(--fw-label); }
+#lv-call .cl-screen .ctx b ~ span { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--scr-line); }
 #lv-call .cl-room { position: relative; display: flex; flex-direction: column; align-items: center; gap: 30px; padding: 24px 14px 28px; overflow: hidden; }
 #lv-call .cl-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 #lv-call .cl-wires path { fill: none; stroke: var(--wire); stroke-width: 1.6; stroke-linecap: round; }
@@ -423,6 +467,20 @@ body.lv-on .waiting { display: none; }
 #lv-mon .mo-cm .lv-bar { grid-column: 2 / 4; width: 100%; height: 5px; --bc: var(--mc); }
 #lv-mon .mo-cm .run { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--st-work); vertical-align: middle; animation: lv-attn 1.2s ease-in-out infinite; }
 #lv-mon .mo-costs.dense { gap: 3px; } #lv-mon .mo-costs.dense .lv-bar { height: 4px; }
+#lv-mon .mo-tdots { display: inline-flex; gap: 5px; align-items: center; }
+#lv-mon .mo-tdots i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--c); }
+#lv-mon .mo-tdots i.used { background: color-mix(in srgb, var(--c) 45%, transparent); }
+#lv-mon .mo-tdots i.hot { background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); animation: lv-attn 1.2s ease-in-out infinite; }
+#lv-mon .mo-tools { display: flex; flex-direction: column; gap: 8px; }
+#lv-mon .mo-tl { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; border-radius: 6px; }
+#lv-mon .mo-tl svg { width: 16px; height: 16px; color: var(--c); }
+#lv-mon .mo-tl .nm { font: var(--t-body); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lv-mon .mo-tl .v { font: var(--t-body); font-variant-numeric: tabular-nums; }
+#lv-mon .mo-tl.idle .nm, #lv-mon .mo-tl.idle .v { color: var(--muted); }
+#lv-mon .mo-tl .segs { grid-column: 2 / 4; display: flex; height: 5px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--muted) 14%, transparent); }
+#lv-mon .mo-tl .segs i { height: 100%; background: var(--mc); transition: width .4s var(--ease, ease); }
+#lv-mon .mo-tl.hot { animation: mo-tl-hot 1.4s ease-out; }
+@keyframes mo-tl-hot { from { background: color-mix(in srgb, var(--c) 22%, transparent); } to { background: transparent; } }
 
 #live .fx { position: absolute; inset: 0; pointer-events: none; z-index: 25; overflow: visible; }
 #live .fx-fly { position: absolute; left: 0; top: 0; width: 24px; height: 20px; margin: -10px 0 0 -12px; color: var(--fc); filter: drop-shadow(0 0 5px var(--fc)) drop-shadow(0 1px 2px var(--fly-shadow)); }
@@ -500,6 +558,17 @@ const usd = (v) => (v == null ? '–' : v !== 0 && Math.abs(v) < 0.01 ? '$' + v.
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const tid = (id) => '#' + id;
 const still = () => reduceMQ.matches;
+function slide(el, open) {
+  if (el._slide) { el._slide.cancel(); el._slide = null; }
+  if (still() || document.hidden) { el.hidden = !open; el.style.overflow = ''; return; }
+  const from = el.hidden ? 0 : el.offsetHeight;
+  el.hidden = false;
+  const to = open ? el.scrollHeight : 0;
+  el.style.overflow = 'hidden';
+  const a = el.animate([{ height: from + 'px', opacity: open ? 0.2 : 1 }, { height: to + 'px', opacity: open ? 1 : 0 }], { duration: open ? 260 : 200, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  el._slide = a;
+  a.onfinish = () => { el._slide = null; el.style.overflow = ''; if (!open) el.hidden = true; };
+}
 
 const P = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const ICONS = {
@@ -526,6 +595,8 @@ const ICONS = {
   play: `<svg viewBox="0 0 24 24" ${P}><path d="M7 4l13 8-13 8z"/></svg>`,
   monitor: `<svg viewBox="0 0 24 24" ${P}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>`,
   chev: `<svg viewBox="0 0 24 24" ${P}><path d="M9 6l6 6-6 6"/></svg>`,
+  plug: `<svg viewBox="0 0 24 24" ${P}><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></svg>`,
+  book: `<svg viewBox="0 0 24 24" ${P}><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/></svg>`,
   sliders: `<svg viewBox="0 0 24 24" ${P}><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>`,
 };
 const icon = (name, cls) => { const t = document.createElement('template'); t.innerHTML = ICONS[name] || ICONS.chat; const e = t.content.firstChild; if (cls) e.setAttribute('class', cls); return e; };
@@ -899,6 +970,7 @@ const requests = (snap) => {
 };
 const age = (s) => { s = Math.max(0, Math.round(s)); return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm' : Math.floor(s / 3600) + 'h'; };
 const since = (s) => s + ((performance.now() - st.recvAt) / 1000) * (st.rate || 1);
+const left = (until) => (until && st.snap && st.snap.now ? until - since(st.snap.now) : 0);
 const place = (parent, node, i) => { if (parent.children[i] !== node) parent.insertBefore(node, parent.children[i] || null); };
 
 const PARTS = [['finished', 'check', 'var(--st-done)'], ['running', 'trend', 'var(--accent)'], ['risks', 'risk', 'var(--warn)'], ['decide', 'question', 'var(--warn)']];
@@ -919,7 +991,7 @@ function closePop() {
   if (popOpen) { popOpen.remove(); popOpen = null; }
   if (colours && colours.parentNode !== topBar) { topBar.append(colours); colours.hidden = !!shown && shown !== 'settings'; }
 }
-document.addEventListener('pointerdown', (e) => { if (popOpen && !popOpen.contains(e.target) && !e.target.closest('.lv-gear, .cl-tile, .cl-chip, .mo-m')) closePop(); });
+document.addEventListener('pointerdown', (e) => { if (popOpen && !popOpen.contains(e.target) && !e.target.closest('.lv-gear, .cl-tile, .cl-chip, .mo-m, .ctx')) closePop(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
 function placePop(pop, anchor) {
   const host = anchor.closest('.lv-view') || root;
@@ -974,6 +1046,29 @@ function openMember(name, anchor) {
     h('div', { class: 'acts' }, write));
   placePop(pop, anchor);
 }
+const lastGist = (snap, name) => { const l = (snap.feed || []).filter((x) => x.from === name && x.kind === 'mail' && x.gist).pop(); return l ? l.gist : ''; };
+function ring(seconds) {
+  const r = sv('svg', { class: 'ring-s', viewBox: '0 0 20 20', 'aria-hidden': 'true' });
+  sv('circle', { class: 'track', cx: 10, cy: 10, r: 7.5 }, r);
+  const arc = sv('circle', { class: 'arc', cx: 10, cy: 10, r: 7.5, pathLength: 100, transform: 'rotate(-90 10 10)' }, r);
+  arc.style.setProperty('--d', Math.max(1, Math.round(seconds)) + 's');
+  return r;
+}
+function openContext(name, anchor, req) {
+  closePop();
+  const snap = st.snap, m = snap && memberOf(name);
+  if (!snap) return;
+  const t = m && m.task != null ? snap.tasks.find((x) => String(x.id) === String(m.task)) : req && req.task != null ? snap.tasks.find((x) => String(x.id) === String(req.task)) : null;
+  const said = feedOf(snap, 'all').filter((l) => (l.from === name || l.to === name) && l.kind === 'mail').slice(-4).reverse();
+  const pop = h('div', { class: 'lv-pop ctx', role: 'dialog', 'aria-label': name, style: `--mc:${mcolor(name)}` },
+    h('header', {}, mini(name, 2), h('b', {}, name), closer()),
+    req && req.gist ? h('p', {}, h('b', {}, req.gist)) : null,
+    req && req.text ? h('p', { class: 'full' }, req.text) : null,
+    t ? h('h4', {}, tid(t.id)) : null, t ? h('p', {}, h('b', {}, t.title)) : null, t && t.description ? h('p', { class: 'full' }, t.description) : null,
+    said.length ? h('h4', {}, icon('chat')) : null,
+    said.length ? h('ul', {}, ...said.map((l) => h('li', { style: `--kc:${kindColour(l)}`, class: 'full' }, (l.from === name ? '' : who(l.from) + ': ') + (l.text || l.gist)))) : null);
+  placePop(pop, anchor);
+}
 function openTask(id, anchor) {
   closePop();
   const t = st.snap && st.snap.tasks.find((x) => String(x.id) === String(id));
@@ -987,6 +1082,8 @@ function openTask(id, anchor) {
 }
 
 const FLY = {
+  tool: '<svg viewBox="0 0 22 18"><path d="M8 1v5M14 1v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M4 6h14v3a7 7 0 0 1-14 0z" fill="currentColor"/><path d="M11 15v3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  skill: '<svg viewBox="0 0 22 18"><path d="M4 2.5A1.5 1.5 0 0 1 5.5 1H19v13H5.5A1.5 1.5 0 0 0 4 15.5z" fill="currentColor"/><path d="M4 15.5A1.5 1.5 0 0 0 5.5 17H19" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 5h7" stroke="#fff" stroke-width="1.5" opacity=".85"/></svg>',
   mail: '<svg viewBox="0 0 22 18"><rect x="1" y="2" width="20" height="14" rx="2" fill="currentColor"/><path d="M2 3l9 7 9-7" fill="none" stroke="#fff" stroke-width="1.6" opacity=".85"/></svg>',
   say: '<svg viewBox="0 0 22 18"><path d="M3 1h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4v-4H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="currentColor"/><g fill="#fff" opacity=".9"><circle cx="7" cy="7" r="1.4"/><circle cx="11" cy="7" r="1.4"/><circle cx="15" cy="7" r="1.4"/></g></svg>',
   post: '<svg viewBox="0 0 22 18"><path d="M4 1h14v11l-5 5H4z" fill="currentColor"/><path d="M13 17v-5h5" fill="#000" opacity=".25"/><path d="M7 5h8M7 8h6" stroke="#fff" stroke-width="1.4" opacity=".85"/></svg>',
@@ -1047,7 +1144,9 @@ const head = (() => {
   const tasksBar = bar(), tasksN = h('b'), tasksOf = h('span', { class: 'of' });
   const doneChip = h('span', { class: 'lv-chip-s' }, icon('check'), h('span', {}, tasksN, tasksOf), tasksBar.el);
   const spendTank = tank(14, 20), spendN = h('b'), spendChip = h('span', { class: 'lv-chip-s' }, spendTank.el, spendN);
-  chipsEl.append(teamChip, crewChip, needChip, doneChip, spendChip);
+  const gauges = ['cpu', 'mem', 'gpu'].map((k) => { const fill = h('i'), g = h('span', { class: 'gg' }, fill); g.fill = fill; g.k = k; return g; });
+  const hostChip = h('span', { class: 'lv-chip-s host', hidden: '' }, icon('monitor'), h('span', { class: 'gauges' }, ...gauges));
+  chipsEl.append(teamChip, crewChip, needChip, doneChip, spendChip, hostChip);
   needChip.onclick = () => aside.focusNeeds();
   const DOTS = 16;
   function paint(snap) {
@@ -1075,6 +1174,17 @@ const head = (() => {
     spendChip.title = b.usd ? `Spent ${usd(spent)} of ${usd(b.usd)}` : `Spent ${usd(spent)}`;
     const n = snap.pending.perms.length + snap.pending.questions.length;
     needChip.hidden = !n; setText(needN, n); needChip.title = `${n} waiting for you`;
+    const ld = snap.load;
+    hostChip.hidden = !ld;
+    if (ld) {
+      const used = { cpu: ld.cpu == null ? null : Math.min(1, ld.cpu), mem: ld.mem == null ? null : 1 - ld.mem, gpu: ld.gpu == null ? null : ld.gpu };
+      for (const g of gauges) { g.hidden = used[g.k] == null; g.fill.style.height = (clamp(used[g.k] || 0, 0, 1) * 100).toFixed(0) + '%'; }
+      hostChip.dataset.level = ld.level;
+      const pct = (v) => Math.round(v * 100) + '%';
+      hostChip.title = [{ ok: 'This computer is fine', busy: 'This computer is busy: no member starts beyond those running',
+        full: 'This computer is near its limit: one member at a time, and members waiting between turns stop until it eases' }[ld.level],
+      ld.cpu != null ? 'Processor ' + pct(Math.min(1, ld.cpu)) : '', ld.mem != null ? 'Memory ' + pct(1 - ld.mem) + ' in use' : '', ld.gpu != null ? 'GPU ' + pct(ld.gpu) : ''].filter(Boolean).join('\n');
+    }
   }
   return {
     conn(state) {
@@ -1087,7 +1197,8 @@ const head = (() => {
 })();
 
 const aside = (() => {
-  const s = { snap: null, keys: new Map(), pinned: true, to: 'leader', filter: store.get('deepcrew-call-filter') === 'all' ? 'all' : 'you', needSig: '', open: new Set(), leadKey: '' };
+  const s = { snap: null, keys: new Map(), pinned: true, to: 'leader', filter: store.get('deepcrew-call-filter') === 'all' ? 'all' : 'you', needSig: '', open: new Set(), leadKey: '',
+    folds: new Set(), groupOpen: false };
   const leadFig = new DiverFig({ color: 'var(--c-lead)', size: 2, state: 'calm' });
   const leadSay = h('p', { class: 'say' }), leadFold = h('button', { type: 'button', class: 'as-fold', 'aria-expanded': 'false', hidden: '' }, icon('chev'), h('span', {}, 'Report details'));
   const leadRep = h('div', { hidden: '' });
@@ -1095,7 +1206,7 @@ const aside = (() => {
     h('div', { class: 'lv-card-head' }, h('h3', {}, 'Leader → You')),
     h('div', { class: 'as-lead' }, h('span', { class: 'as-fig' }, leadFig.el), h('div', {}, leadSay, leadFold, leadRep)));
   leadSay.onclick = () => leadSay.classList.toggle('open');
-  leadFold.onclick = () => { leadRep.hidden = !leadRep.hidden; leadFold.setAttribute('aria-expanded', String(!leadRep.hidden)); };
+  leadFold.onclick = () => { const open_ = leadRep.hidden; slide(leadRep, open_); leadFold.setAttribute('aria-expanded', String(open_)); };
   const lines = h('ol', { class: 'as-lines', 'aria-live': 'polite' });
   const only = { you: h('button', { type: 'button' }, 'With you'), all: h('button', { type: 'button' }, 'Everyone') };
   const toSel = h('select', { class: 'as-to', 'aria-label': 'Send to' });
@@ -1124,13 +1235,14 @@ const aside = (() => {
 
   const lineKey = (l, showRe) => [l.ts, l.kind, l.from, l.to, String(l.text).slice(0, 40), showRe ? 1 : 0].join('|');
   function lineEl(l, showRe) {
-    const k = lineKind(l), def = KIND[k] || KIND.mail, toYou = l.to === 'user' && l.from !== 'user', decided = l.kind === 'answer' && (k === 'allowed' || k === 'denied');
+    const k = lineKind(l), def = KIND[k] || KIND.mail, decided = l.kind === 'answer' && (k === 'allowed' || k === 'denied');
+    const toYou = l.to === 'user' && l.from !== 'user' && l.kind !== 'question';
     const short = l.gist || l.text, full = decided ? '' : String(l.text || ''), word = def[2], to = l.to !== 'user' && l.to !== 'leader' && l.to !== 'all' ? l.to : '';
     const text = h('p', { class: 'as-text' }, toYou ? full || short : short);
     let extra = null;
     if (!toYou && full && full.replace(/\s+/g, ' ').trim() !== String(short).trim()) {
       const more = h('button', { type: 'button', class: 'as-more' }, 'more'), boxEl = h('div', { class: 'as-full', hidden: '' }, full);
-      more.onclick = () => { boxEl.hidden = !boxEl.hidden; setText(more, boxEl.hidden ? 'more' : 'less'); };
+      more.onclick = () => { const open_ = boxEl.hidden; slide(boxEl, open_); setText(more, open_ ? 'less' : 'more'); };
       text.append(' ', more); extra = boxEl;
     } else text.onclick = () => text.classList.toggle('open');
     const when = new Date(l.ts * 1000);
@@ -1139,15 +1251,33 @@ const aside = (() => {
       h('div', { class: 'as-bub' + (word ? ' kind' : '') + (l.re ? ' re' : ''), style: `--kc:${def[1]}`, title: l.re && showRe ? 'Passing on your words: ' + l.re.text : null },
         word ? h('span', { class: 'as-k' }, icon(def[0])) : null, l.text ? text : null, extra, l.parts ? report(l.parts) : null));
   }
+  const approval = (l) => l.kind === 'perm' || (l.kind === 'answer' && String(l.id || '').startsWith('P'));
+  function foldEl(run, key) {
+    const sub = h('ol', { hidden: s.folds.has(key) ? null : '' }), names = [...new Set(run.map((l) => (l.kind === 'perm' ? l.from : l.to)))];
+    const b = h('button', { type: 'button', 'aria-expanded': String(s.folds.has(key)), title: names.join(', ') }, icon('hand'), h('b', {}, run.filter((l) => l.kind === 'perm').length || run.length),
+      h('span', { class: 'who' }, ...names.slice(0, 8).map((n) => h('i', { style: `--mc:${mcolor(n)}` }))));
+    b.onclick = () => { const open_ = sub.hidden; slide(sub, open_); b.setAttribute('aria-expanded', String(open_)); if (open_) s.folds.add(key); else s.folds.delete(key); };
+    sub.append(...run.map((l) => lineEl(l, false)));
+    return h('li', { class: 'as-line as-fold-line' }, b, sub);
+  }
   function paintChat(snap, fresh) {
-    const list = feedOf(snap, s.filter);
-    if (!list.length) { lines.replaceChildren(h('li', { class: 'lv-empty' }, icon('chat'))); s.keys.clear(); return; }
+    const all = feedOf(snap, s.filter);
+    if (!all.length) { lines.replaceChildren(h('li', { class: 'lv-empty' }, icon('chat'))); s.keys.clear(); return; }
+    const list = [];
+    for (let i = 0; i < all.length;) {
+      let j = i; while (j < all.length && approval(all[j])) j++;
+      if (j - i >= 2) { list.push({ fold: all.slice(i, j) }); i = j; } else { list.push(all[i]); i += 1; }
+    }
     const next = new Map();
     const kids = list.map((l, i) => {
+      if (l.fold) {
+        const k = 'fold|' + lineKey(l.fold[0], false) + '|' + l.fold.length;
+        let e = s.keys.get(k); if (!e) e = foldEl(l.fold, 'fold|' + lineKey(l.fold[0], false)); next.set(k, e); return e;
+      }
       const prev = list[i - 1], showRe = !!l.re && !(prev && prev.re && prev.re.text === l.re.text), k = lineKey(l, showRe);
       let e = s.keys.get(k); if (!e) { e = lineEl(l, showRe); if (fresh && s.keys.size) e.classList.add('new'); } next.set(k, e); return e;
     });
-    kids.forEach((e, i) => e.classList.toggle('cont', i > 0 && list[i - 1].from === list[i].from && list[i - 1].to === list[i].to));
+    kids.forEach((e, i) => e.classList.toggle('cont', i > 0 && !list[i].fold && !list[i - 1].fold && list[i - 1].from === list[i].from && list[i - 1].to === list[i].to));
     if (kids.length !== lines.children.length || kids.some((e, i) => lines.children[i] !== e)) lines.replaceChildren(...kids);
     s.keys = next;
     if (s.pinned) lines.scrollTop = lines.scrollHeight;
@@ -1194,7 +1324,8 @@ const aside = (() => {
     const perm = r.kind === 'perm', what = perm ? (r.tool && r.tool !== 'Bash' ? r.tool + ' ' : '') + (Object.values(r.fields || {})[0] || r.tool) : r.gist || r.text;
     const ageEl = h('span', { class: 'age' }), row = h('div', { class: 'as-need' + (s.open.has(r.id) ? ' open' : ''), 'data-id': r.id, style: `--mc:${mcolor(r.member)}` });
     const top = h('button', { type: 'button', 'aria-expanded': String(s.open.has(r.id)), title: (perm ? 'Asks to run' : 'Asks') + ', ' + r.id }, mini(r.member, 1.5),
-      h('span', { class: 'mid' }, h('span', { class: 'hd' }, h('span', { class: 'ic' }, icon(perm ? 'hand' : 'question')), h('b', {}, r.member), ageEl),
+      h('span', { class: 'mid' }, h('span', { class: 'hd' }, h('span', { class: 'ic' }, icon(perm ? 'hand' : 'question')), h('b', {}, r.member), ageEl,
+        ...(!perm && left(r.user_until) > 0 ? [ring(left(r.user_until))] : [])),
         h('span', { class: 'what' }, ell(what, 90))),
       h('span', { class: 'chev' }, icon('chev')));
     const act = h('div', { class: 'act', hidden: s.open.has(r.id) ? null : '' });
@@ -1215,23 +1346,35 @@ const aside = (() => {
       act.append(...[r.text && r.text !== what ? h('p', {}, r.text) : null, acts].filter(Boolean));
     }
     top.onclick = () => {
-      const open_ = act.hidden; act.hidden = !open_; row.classList.toggle('open', open_); top.setAttribute('aria-expanded', String(open_));
+      const open_ = act.hidden; slide(act, open_); row.classList.toggle('open', open_); top.setAttribute('aria-expanded', String(open_));
       if (open_) s.open.add(r.id); else s.open.delete(r.id);
     };
     lock(viewOnly());
     row.append(top, act); row.ageEl = ageEl; row.req = r;
     return row;
   }
+  function permGroup(perms) {
+    if (perms.length < 2) return perms.map(needRow);
+    const list = h('div', { class: 'list', hidden: s.groupOpen ? null : '' }, ...perms.map(needRow)), names = [...new Set(perms.map((r) => r.member))];
+    const g = h('div', { class: 'as-group' + (s.groupOpen ? ' open' : '') });
+    const b = h('button', { type: 'button', 'aria-expanded': String(s.groupOpen), title: names.join(', ') }, h('span', { class: 'ic' }, icon('hand')), h('b', {}, perms.length),
+      h('span', { class: 'who' }, ...names.slice(0, 10).map((n) => h('i', { style: `--mc:${mcolor(n)}` }))), h('span', { class: 'chev' }, icon('chev')));
+    b.onclick = () => { s.groupOpen = list.hidden; slide(list, s.groupOpen); g.classList.toggle('open', s.groupOpen); b.setAttribute('aria-expanded', String(s.groupOpen)); };
+    g.append(b, list);
+    return [g];
+  }
   function paintNeeds(snap) {
     const reqs = [...snap.pending.perms.map((r) => ({ ...r, kind: 'perm' })), ...snap.pending.questions.map((r) => ({ ...r, kind: 'question' }))].sort((a, b) => b.age_s - a.age_s);
     needCard.hidden = !reqs.length || !snap.team; setText(needN, reqs.length);
     for (const id of [...s.open]) if (!reqs.some((r) => r.id === id)) s.open.delete(id);
-    const sig = JSON.stringify([reqs.map((r) => r.id), viewOnly()]);
-    if (sig !== s.needSig) { s.needSig = sig; needList.replaceChildren(...reqs.map(needRow)); }
-    for (const row of needList.children) { const r = reqs.find((x) => x.id === row.req.id); if (r) row.req = r; }
+    const qs = reqs.filter((r) => r.kind === 'question'), ps = reqs.filter((r) => r.kind === 'perm');
+    const sig = JSON.stringify([qs.map((r) => [r.id, !!r.user_until]), ps.map((r) => r.id), viewOnly()]);
+    if (sig !== s.needSig) { s.needSig = sig; needList.replaceChildren(...qs.map(needRow), ...permGroup(ps)); }
+    for (const row of rowsOf()) { const r = reqs.find((x) => x.id === row.req.id); if (r) row.req = r; }
     tickAges();
   }
-  function tickAges() { for (const row of needList.children) setText(row.ageEl, age(since(row.req.age_s))); }
+  const rowsOf = () => [...needList.querySelectorAll('.as-need')];
+  function tickAges() { for (const row of rowsOf()) setText(row.ageEl, age(since(row.req.age_s))); }
   setInterval(() => { if (!needCard.hidden && !document.hidden) tickAges(); }, 1000);
 
   function paint(fresh) {
@@ -1252,7 +1395,9 @@ const aside = (() => {
     focusNeeds(member) {
       if (needCard.hidden) return;
       needCard.scrollIntoView({ block: 'nearest', behavior: still() ? 'auto' : 'smooth' });
-      const first = [...needList.children].find((row) => !member || row.req.member === member) || needList.firstElementChild;
+      const first = rowsOf().find((row) => !member || row.req.member === member) || rowsOf()[0];
+      const group = first && first.closest('.as-group');
+      if (group && !group.classList.contains('open')) group.firstElementChild.click();
       if (first && !first.classList.contains('open')) first.firstElementChild.click();
       if (first && !still()) { first.classList.remove('flash'); void first.offsetWidth; first.classList.add('flash'); }
     },
@@ -1438,6 +1583,19 @@ views.call = (() => {
   }
   function idleStage(snap) {
     if (s.timer || stage.now) return;
+    const waits = (snap.pending.questions || []).filter((x) => left(x.user_until) > 0 && memberOf(x.member)).pop();
+    if (waits) {
+      const d = bigDesk(waits.member), said = waits.gist || waits.text;
+      d.set('talk', 'ask');
+      if (stage.holder.firstChild !== d.el) stage.holder.replaceChildren(d.el);
+      stage.el.style.setProperty('--sc', mcolor(waits.member)); stage.el.classList.add('talking');
+      setKind('question');
+      stage.route.replaceChildren(stage.kind, pill(waits.member, 0, true), icon('arrow'), pill('user', 1));
+      setText(stage.say, ell(said, 220)); stage.say.className = 'cl-say';
+      for (const t of s.tiles.values()) t.el.classList.toggle('speaking', t.name === waits.member);
+      share({ from: waits.member, kind: 'question', id: waits.id, text: said, full: waits.text });
+      return;
+    }
     const working = snap.members.some((m) => m.state === 'active'), d = bigDesk('leader');
     d.set('calm', working ? 'read' : 'off');
     if (stage.holder.firstChild !== d.el) stage.holder.replaceChildren(d.el);
@@ -1454,19 +1612,43 @@ views.call = (() => {
   function share(it) {
     const snap = s.snap; if (!snap) return;
     const from = it.from, m = member(from), sig = [from, it.kind, it.id || '', m ? m.task : '', m && m.shot ? m.shot.mtime : '', (s.edits.get(from) || {}).path || '', it.kind === 'board' ? snap.tasks.map((t) => t.id + t.state + t.owner).join() : ''].join('|');
-    if (sig === stage.shared) return;
+    const q = it.kind === 'question' ? (snap.pending.questions || []).find((x) => x.id === it.id) : null;
+    const key = sig + (q ? '|q' + (q.user_until ? 1 : 0) : it.kind === 'question' ? '|a' : '') + (m && !q ? '|' + lastGist(snap, from) : '');
+    if (key === stage.shared) return;
     const fresh = stage.shared.split('|')[0] !== from;
-    stage.shared = sig;
+    stage.shared = key;
     const title = h('b', {}, from === 'leader' || from === 'user' ? 'The board' : from);
     const body = h('div', { class: 'body' });
     stage.screen.replaceChildren(h('div', { class: 'sbar' }, h('i'), h('i'), h('i'), title, h('span', { class: 'live', title: 'shared now' })), body);
     if (fresh && !still()) { stage.screen.classList.remove('in'); void stage.screen.offsetWidth; stage.screen.classList.add('in'); }
     if (!m) { boardScreen(body, snap); return; }
     if (it.kind === 'perm') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-y)' }, icon('hand')), h('code', {}, it.full || it.text))); return; }
-    if (it.kind === 'question') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-y)' }, icon('question')), h('b', {}, it.text))); return; }
+    if (it.kind === 'question') { askScreen(body, it, m, snap); return; }
     if (it.kind === 'done') { body.append(h('div', { class: 'big' }, h('span', { style: 'color:var(--dot-g)' }, icon('check')), h('b', {}, it.title || ''))); return; }
     if (m.shot && (m.shot.data || !st.actions)) { pictureScreen(body, m); return; }
     taskScreen(body, m, snap);
+  }
+  function askScreen(body, it, m, snap) {
+    const q = (snap.pending.questions || []).find((x) => x.id === it.id), t = m.task != null ? snap.tasks.find((x) => String(x.id) === String(m.task)) : null;
+    const said = (q && q.gist) || it.text, recent = lastGist(snap, m.name);
+    body.className = 'body ask';
+    const head = h('div', { class: 'ask-q' }, icon('question'), h('b', {}, said));
+    if (q && left(q.user_until) > 0) { const r = ring(left(q.user_until)); head.append(r); head.title = 'Waits for you, then the leader answers'; }
+    body.append(head);
+    if (q) {
+      const acts = h('div', { class: 'ask-acts' }), lock = (on_) => { for (const x of acts.querySelectorAll('button,input')) x.disabled = on_; };
+      const send = (answer) => { lock(true); post('/api/answer', { id: q.id, ...answer }).catch(() => lock(false)); };
+      (q.options || []).forEach((o, i) => { const b = h('button', { type: 'button', class: 'lv-btn' }, o); b.onclick = () => send({ option: i }); acts.append(b); });
+      const inp = h('input', { placeholder: 'Your answer', 'aria-label': 'Your answer' }), go = h('button', { type: 'button', class: 'lv-btn primary', 'aria-label': 'Answer' }, icon('send'));
+      const typed = () => { if (inp.value.trim()) send({ text: inp.value.trim() }); };
+      go.onclick = typed; inp.onkeydown = (e) => { if (e.key === 'Enter') typed(); };
+      acts.append(inp, go); lock(viewOnly());
+      body.append(acts);
+    }
+    const ctx = h('button', { type: 'button', class: 'ctx', title: 'The whole question, the task and the latest messages' },
+      ...(t ? [h('b', {}, tid(t.id) + ' '), t.title] : []), ...(recent && recent !== said ? [h('span', {}, recent)] : []));
+    ctx.onclick = () => openContext(m.name, ctx, q ? { ...q, text: q.text } : { text: it.full || it.text, task: m.task });
+    body.append(ctx);
   }
   function boardScreen(body, snap) {
     const rank = { claimed: 0, open: 1, done: 2, cancelled: 3 }, rows = [...snap.tasks].sort((a, b) => rank[a.state] - rank[b.state] || Number(a.id) - Number(b.id)).slice(0, 9);
@@ -1482,6 +1664,8 @@ views.call = (() => {
     if (!t) { body.append(h('div', { class: 'big' }, h('span', { style: `color:${mcolor(m.name)}` }, icon('chat')))); return; }
     const tk = tank(22, 30); tk.set((m.pct || 0) / 100, mcolor(m.name));
     body.append(h('div', { class: 'task' }, tk.el, h('b', {}, tid(t.id) + ' ' + t.title)));
+    const recent = lastGist(snap, m.name);
+    if (recent) { const ctx = h('button', { type: 'button', class: 'ctx', title: 'The task and the latest messages' }, recent); ctx.onclick = () => openContext(m.name, ctx, null); body.append(ctx); }
     const last = s.edits.get(m.name), files = [...new Set([...(last ? [last.path] : []), ...(t.scope || [])])].slice(0, 5);
     if (files.length) body.append(h('div', { class: 'files' }, ...files.map((p) => h('div', { class: 'file' + (last && p === last.path ? ' hot' : '') }, icon('file'), p))));
     const colors = ['var(--dot-r)', 'var(--dot-y)', 'var(--scr-pick)', 'var(--dot-g)', 'var(--water-2)'];
@@ -1544,12 +1728,12 @@ views.call = (() => {
       }
       case 'perm': case 'question':
         if (ev.state === 'pending') {
-          fly(m, 'leader', 'ask', 'var(--warn)');
-          speak({ from: m, to: 'leader', kind: ev.kind, text: ev.kind === 'question' ? short : ell(ev.brief || '', 120), full: ev.brief, id: ev.id, must: ev.kind === 'question', mode: 'ask' });
+          fly(m, ev.user ? 'user' : 'leader', 'ask', 'var(--warn)');
+          if (ev.kind === 'question') speak({ from: m, to: ev.user ? 'user' : 'leader', kind: ev.kind, text: short, full: ev.text, id: ev.id, must: !!ev.user, mode: 'ask' });
         } else {
           const by = ev.by === 'user' ? 'user' : 'leader';
           fly(by, m, 'say', 'var(--warn)');
-          if (by === 'user' || ev.kind === 'question') speak({ from: by, to: m, kind: ev.state, text: ev.answer || ev.brief || '', must: true });
+          if (ev.kind === 'question') speak({ from: by, to: m, kind: ev.state, text: ev.answer || ev.brief || '', must: by === 'user' });
         }
         break;
       case 'edit': case 'note': {
@@ -1559,6 +1743,9 @@ views.call = (() => {
       }
       case 'member_state':
         if (ev.state === 'starting' && t(ev.name)) t(ev.name).desk.play('wave');
+        break;
+      case 'tool':
+        if (t(m)) { t(m).desk.play('type'); if (!still()) fxl.ping(fxl.centreOf(t(m).el), ev.tool_kind === 'skills' ? 'var(--a-gold)' : 'var(--a-sea)'); }
         break;
       default: break;
     }
@@ -1576,7 +1763,6 @@ views.call = (() => {
     nobody.hidden = !!snap.team; stageCard.hidden = roomCard.hidden = !snap.team;
     if (!snap.team) return;
     paintRoom(snap); idleStage(snap);
-    if (!stage.now && !s.timer) share({ from: 'leader', kind: 'board' });
     const x = (snap.summaries || [])[0];
     if (s.lastSummary === null) s.lastSummary = x ? x.ts : 0;
     else if (x && x.ts !== s.lastSummary) {
@@ -1638,22 +1824,27 @@ views.monitor = (() => {
   needPill.onclick = () => aside.focusNeeds();
   bbEl.onclick = () => tbl.scrollIntoView({ block: 'nearest', behavior: still() ? 'auto' : 'smooth' });
   for (const n of [userCard, leadEl, bbEl]) n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); n.click(); } };
-  foldB.onclick = () => { folders.hidden = !folders.hidden; foldB.setAttribute('aria-expanded', String(!folders.hidden)); store.set('deepcrew-monitor-files', folders.hidden ? '' : '1'); s.wiresSig = ''; };
+  foldB.onclick = () => {
+    const open_ = folders.hidden; slide(folders, open_); foldB.setAttribute('aria-expanded', String(open_)); store.set('deepcrew-monitor-files', open_ ? '1' : '');
+    s.wiresSig = ''; setTimeout(() => { s.wiresSig = ''; requestAnimationFrame(drawWires); }, 280);
+  };
   if (store.get('deepcrew-monitor-files') === '1') { folders.hidden = false; foldB.setAttribute('aria-expanded', 'true'); }
 
   function pane(title) {
     const metaEl = h('span', { class: 'lv-meta' }), body = h('div', { class: 'body', hidden: '' });
     const b = h('button', { type: 'button', 'aria-expanded': 'false' }, icon('chev'), h('b', {}, title), metaEl);
     const p = h('section', { class: 'mo-pane', 'aria-label': title }, b, body), key = 'deepcrew-pane-' + title.toLowerCase();
-    const set = (open_) => { body.hidden = !open_; b.setAttribute('aria-expanded', String(open_)); };
-    b.onclick = () => { set(body.hidden); store.set(key, body.hidden ? '' : '1'); };
+    const set = (open_, moving) => { if (moving) slide(body, open_); else body.hidden = !open_; b.setAttribute('aria-expanded', String(open_)); };
+    b.onclick = () => { const open_ = body.hidden; set(open_, true); store.set(key, open_ ? '1' : ''); };
     set(store.get(key) === '1');
     panes.append(p);
     return { el: p, meta: metaEl, body };
   }
-  const act = pane('Activity'), dec = pane('Decisions'), cost = pane('Cost');
+  const act = pane('Activity'), dec = pane('Decisions'), cost = pane('Cost'), tools = pane('Tools');
   const logEl = h('ol', { class: 'mo-log' }), decEl = h('ol', { class: 'mo-log' }), costEl = h('ul', { class: 'mo-costs' }), costTank = tank(12, 16);
-  act.body.append(logEl); dec.body.append(decEl); cost.body.append(costEl);
+  const toolsEl = h('ul', { class: 'mo-tools' }), toolDots = h('span', { class: 'mo-tdots' });
+  act.body.append(logEl); dec.body.append(decEl); cost.body.append(costEl); tools.body.append(toolsEl);
+  tools.el.hidden = true;
 
   const FIG_STATE = { active: 'work', starting: 'calm', idle: 'idle', failed: 'failed', waiting: 'away', removed: 'away' };
   function tileOf(name) {
@@ -1801,7 +1992,7 @@ views.monitor = (() => {
   }
 
   const COLOUR = { post: 'var(--g-flow)', claim: 'var(--g-flow)', done: 'var(--st-done)', mail: 'var(--g-mail)', edit: 'var(--g-edit)', note: 'var(--g-edit)',
-    perm: 'var(--warn)', question: 'var(--warn)', member_state: 'var(--muted)' };
+    perm: 'var(--warn)', question: 'var(--warn)', member_state: 'var(--muted)', tool: 'var(--a-sea)' };
   const node = (id) => who(String(id || '').replace(/^m:/, '').replace(/^board$/, 'all'));
   const said = (e) => (e.kind === 'mail' && e.gist ? `${node(e.from)} → ${node(e.to)}: ${e.gist}` : e.label);
   function paintLog() {
@@ -1843,14 +2034,57 @@ views.monitor = (() => {
     for (const [k, li] of s.costs) if (!seen.has(k)) { li.remove(); s.costs.delete(k); }
   }
 
+  const TOOL_HOT_MS = 60000, toolColour = (kind) => (kind === 'mcp' ? 'var(--a-sea)' : 'var(--a-gold)');
+  s.toolRows = new Map(); s.toolHot = new Map();
+  function toolList(snap) {
+    const tl = snap.tools || {}, given = tl.given || {};
+    return ['mcp', 'skills'].flatMap((kind) => [...new Set([...(given[kind] || []), ...Object.keys(tl[kind] || {})])].sort()
+      .map((name) => ({ kind, name, key: kind + ':' + name, u: (tl[kind] || {})[name] || { calls: 0, by: {}, last: 0, tools: {} } })));
+  }
+  function paintTools(snap) {
+    const list = toolList(snap), now = Date.now(), lag = snap.now ? now / 1000 - snap.now : 0;
+    tools.el.hidden = !list.length;
+    if (!list.length) return;
+    for (const r of list) if (r.u.last && !s.toolHot.has(r.key)) s.toolHot.set(r.key, (r.u.last + lag) * 1000 + TOOL_HOT_MS);
+    const hot = (r) => (s.toolHot.get(r.key) || 0) > now, total = list.reduce((n, r) => n + r.u.calls, 0), max = Math.max(1, ...list.map((r) => r.u.calls));
+    toolDots.replaceChildren(...list.map((r) => h('i', { class: (r.u.calls ? 'used' : '') + (hot(r) ? ' hot' : ''), style: `--c:${toolColour(r.kind)}` })));
+    tools.meta.replaceChildren(toolDots, h('b', { class: 'mo-n' }, total));
+    tools.el.title = list.map((r) => `${r.name}: ${r.u.calls}`).join('\n');
+    const seen = new Set();
+    list.forEach((r, i) => {
+      let li = s.toolRows.get(r.key);
+      if (!li) {
+        li = h('li', { class: 'mo-tl', style: `--c:${toolColour(r.kind)}` }, icon(r.kind === 'mcp' ? 'plug' : 'book'), h('span', { class: 'nm' }, r.name), h('span', { class: 'v' }), h('span', { class: 'segs' }));
+        s.toolRows.set(r.key, li);
+      }
+      seen.add(r.key);
+      const [, , v, segs] = li.children, by = Object.entries(r.u.by).sort((a, b) => b[1] - a[1]);
+      li.classList.toggle('idle', !r.u.calls);
+      setText(v, String(r.u.calls));
+      segs.replaceChildren(...by.map(([who, n]) => h('i', { style: `--mc:${mcolor(who)};width:${(100 * n / max).toFixed(1)}%`, title: `${who}: ${n}` })));
+      const tl = Object.entries(r.u.tools || {}).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} ${n}`).join(', ');
+      li.title = [`${r.kind === 'mcp' ? 'MCP server' : 'Skill'} ${r.name}: ${r.u.calls} ${r.u.calls === 1 ? 'call' : 'calls'}`, by.map(([who, n]) => `${who} ${n}`).join(', '),
+        tl, r.u.last ? 'Last ' + hm(r.u.last) : ''].filter(Boolean).join('\n');
+      place(toolsEl, li, i);
+    });
+    for (const [k, li] of s.toolRows) if (!seen.has(k)) { li.remove(); s.toolRows.delete(k); }
+  }
+  function toolUsed(ev) {
+    const key = (ev.tool_kind || 'mcp') + ':' + ev.name, li = s.toolRows.get(key);
+    s.toolHot.set(key, Date.now() + TOOL_HOT_MS);
+    setTimeout(() => s.snap && paintTools(s.snap), TOOL_HOT_MS + 50);
+    if (li && !still()) { li.classList.remove('hot'); void li.offsetWidth; li.classList.add('hot'); }
+  }
+
   function nodeOf(id) {
     if (id === 'user') return userCard;
     if (id === 'leader') return leadEl;
     if (id === 'board' || id === 'all') return bbEl;
+    if (id === 'tools') return tools.el.hidden ? null : tools.el.firstChild;
     const t = s.tiles.get(String(id).replace(/^m:/, '')); return t ? t.el : null;
   }
   const MOVES = { claim: ['from', 'look'], done: ['from', 'done'], release: ['from', 'look'], pass: ['from', 'look'], edit: ['from', 'work'], note: ['from', 'work'], perm: ['from', 'work'],
-    question: ['from', 'work'], mail: ['to', 'mail'] };
+    question: ['from', 'work'], mail: ['to', 'mail'], tool: ['from', 'work'] };
   function onEvents(evs) {
     if (el.hidden || document.hidden) return;
     evs.forEach((ev, i) => {
@@ -1858,8 +2092,10 @@ views.monitor = (() => {
       if (t) setTimeout(() => t.fig.play(play), end === 'to' ? delay + 900 : delay);
       if (ev.task != null) flashRow(ev.task, COLOUR[ev.kind] || 'var(--g-flow)');
       if (ev.kind === 'member_state' || ev.kind === 'edit' || ev.kind === 'note' || ev.from === ev.to) return;
-      const kind = ev.kind === 'done' ? 'done' : ev.kind === 'post' || ev.kind === 'claim' ? 'post' : ev.kind === 'perm' || ev.kind === 'question' ? (ev.state === 'pending' ? 'ask' : 'say') : ev.from === 'user' ? 'say' : 'mail';
-      const color = ev.kind === 'claim' ? mcolor(String(ev.to).replace(/^m:/, '')) : COLOUR[ev.kind] || 'var(--g-mail)';
+      if (ev.kind === 'tool') setTimeout(() => toolUsed(ev), delay + 900);
+      const kind = ev.kind === 'tool' ? (ev.tool_kind === 'skills' ? 'skill' : 'tool') : ev.kind === 'done' ? 'done' : ev.kind === 'post' || ev.kind === 'claim' ? 'post'
+        : ev.kind === 'perm' || ev.kind === 'question' ? (ev.state === 'pending' ? 'ask' : 'say') : ev.from === 'user' ? 'say' : 'mail';
+      const color = ev.kind === 'claim' ? mcolor(String(ev.to).replace(/^m:/, '')) : ev.kind === 'tool' ? toolColour(ev.tool_kind) : COLOUR[ev.kind] || 'var(--g-mail)';
       fxl.fly(nodeOf(ev.from), nodeOf(ev.to), kind, color, delay);
       setTimeout(() => lightWires(ev.from, ev.to, color), delay);
       if (ev.kind === 'done' && t) { const p = fxl.centreOf(t.el); setTimeout(() => fxl.burst(p, mcolor(ev.member)), delay + 200); }
@@ -1876,7 +2112,7 @@ views.monitor = (() => {
     const total = Math.max(1, c.open + c.claimed + c.done);
     stack.done.style.width = (100 * c.done / total) + '%'; stack.work.style.width = (100 * c.claimed / total) + '%'; stack.open.style.width = (100 * c.open / total) + '%';
     stackEl.title = `${c.done} done, ${c.claimed} at work, ${c.open} waiting`;
-    paintFolders(snap); paintCrew(snap); paintTable(snap); paintDecisions(snap); paintCost(snap);
+    paintFolders(snap); paintCrew(snap); paintTable(snap); paintDecisions(snap); paintCost(snap); paintTools(snap);
   }
   return {
     el,

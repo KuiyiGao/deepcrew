@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import shutil
 import stat
 import sys
@@ -419,6 +420,18 @@ def test_post_prints_the_task_and_starts_nothing(lead, deepcrew, procs):
         assert (code, out) == (1, "") and err.startswith("deepcrew: ") and message in err and len(lead.tasks()) == 2
 
 
+def test_the_mod_takes_only_the_users_own_words_from_the_page_and_the_rest_stays_for_the_inbox(lead, deepcrew):
+    lead.send("user", "leader", "message", "Please add a dark mode.")
+    lead.send("user", "leader", "notice", "(copy) the user wrote to alpha: hi")
+    lead.send("alpha", "leader", "message", "Plan: the table first.", gist="I start with the table.", report="kickoff")
+    assert json.loads(deepcrew("status", "--json")[1])["user_messages"] == 1
+    code, out, _ = deepcrew("inbox", "--from-user", "--json")
+    assert code == 0 and [m["text"] for m in json.loads(out)["messages"]] == ["Please add a dark mode."]
+    assert json.loads(deepcrew("status", "--json")[1])["user_messages"] == 0
+    assert json.loads(deepcrew("inbox", "--from-user", "--json")[1])["messages"] == []
+    assert sorted(m["from"] for m in json.loads(deepcrew("inbox", "--json")[1])["messages"]) == ["alpha", "user"]
+
+
 def test_status_and_inbox_show_what_waits_for_the_leader(lead, deepcrew, post_task):
     post_task(lead, "new area", ["lib/"])
     post_task(lead, "crosses", ["src/a.py", "docs/x.md"])
@@ -475,11 +488,11 @@ def test_inbox_wait_returns_for_new_items_only_and_says_when_the_board_finished(
 def test_approve_and_answer_resolve_the_requests(lead, deepcrew):
     a, b, c = (lead.request("perms", "alpha", {"tool": "Bash", "input": {"command": cmd}, "tool_use_id": None, "always": False})
                for cmd in ("wc -c", "rm -rf x", "wc a && wc b"))
-    assert deepcrew("approve", a["id"], "--always") == (0, f"{a['id']} allowed (added to the team allowlist)\n", "")
+    assert deepcrew("approve", a["id"], "--always") == (0, f"{a['id']} allowed (`wc` commands run without asking from now on)\n", "")
     assert deepcrew("approve", b["id"], "--deny")[1] == f"{b['id']} denied\n"
-    assert deepcrew("approve", c["id"], "--always")[1] == f"{c['id']} allowed (nothing to widen: 'wc a && wc b' is not one simple command)\n"
+    assert deepcrew("approve", c["id"], "--always")[1] == f"{c['id']} allowed (nothing to widen: 'wc a && wc b' runs without asking already)\n"
     cfg = read_json(lead.dir / "team.json")
-    assert cfg["exact_allow"] == ["wc -c"] and cfg["bash_allow"] == [] and cfg["approved_allow"] == [] and lead.pending("perms") == []
+    assert cfg["prefix_allow"] == ["wc"] and cfg["bash_allow"] == [] and cfg["approved_allow"] == [] and lead.pending("perms") == []
     assert read_json(lead.dir / "perms" / f"{a['id']}.json")["always"] is True and read_json(lead.dir / "perms" / f"{c['id']}.json")["always"] is False
     code, _, err = deepcrew("approve", a["id"])
     assert code == 1 and "already allowed" in err and deepcrew("approve", "P0000dead")[0] == 1
@@ -685,7 +698,7 @@ def test_sync_team_carries_only_the_settings_just_written(make_board):
 @pytest.mark.sandbox
 def test_the_advanced_settings_reach_the_team_and_keep_what_the_leader_approved(make_board, tmp_path, monkeypatch):
     board = make_board()
-    rid = board.request("perms", "alpha", {"tool": "Bash", "input": {"command": "jq ."}, "tool_use_id": None, "always": False})["id"]
+    rid = board.request("perms", "alpha", {"tool": "Bash", "input": {"command": "git commit -m x"}, "tool_use_id": None, "always": False})["id"]
     policy.answer_permission(board, rid, True, always=True)
     secret = tmp_path / "secret-dir"
     secret.mkdir()
@@ -694,7 +707,7 @@ def test_the_advanced_settings_reach_the_team_and_keep_what_the_leader_approved(
     keys = ["DEEPCREW_ALLOW", "DEEPCREW_ALLOW_OFF", "DEEPCREW_TOOLS_OFF", "DEEPCREW_SANDBOX_DENY_READ", "DEEPCREW_SANDBOX_ALLOW_WRITE"]
     changed = cli.sync_team(board, keys)["changed"]
     cfg = read_json(board.dir / "team.json")
-    assert cfg["bash_allow"] == ["make"] and cfg["exact_allow"] == ["jq ."] and cfg["approved_allow"] == [] and set(changed) >= {"bash_allow", "tools"}
+    assert cfg["bash_allow"] == ["make"] and cfg["prefix_allow"] == ["git commit"] and cfg["approved_allow"] == [] and set(changed) >= {"bash_allow", "tools"}
     assert "WebFetch" not in cfg["tools"] and "Bash" in cfg["tools"]
     assert cfg["sandbox"] and str(secret) in cfg["sandbox"]["filesystem"]["denyRead"] and cfg["sandbox"]["filesystem"]["allowWrite"] == [str(tmp_path / "cache")]
     assert not any("does-not-exist-here" in d for d in cfg["sandbox"]["filesystem"]["denyRead"])
@@ -743,10 +756,10 @@ def test_approve_answers_every_id_it_is_given_and_reports_the_ones_it_cannot(lea
     code, out, err = deepcrew("approve", c, d, "--deny")
     assert (code, out, err) == (0, f"{c} denied\n{d} denied\n", "") and lead.pending("perms") == []
     e, f = ask("wc -l"), ask("wc a && wc b")
-    assert deepcrew("approve", e, f, "--always")[1] == (f"{e} allowed (added to the team allowlist)\n"
-                                                         f"{f} allowed (nothing to widen: 'wc a && wc b' is not one simple command)\n")
+    assert deepcrew("approve", e, f, "--always")[1] == (f"{e} allowed (`wc` commands run without asking from now on)\n"
+                                                         f"{f} allowed (nothing to widen: 'wc a && wc b' runs without asking already)\n")
     cfg = read_json(lead.dir / "team.json")
-    assert cfg["exact_allow"] == ["wc -l"] and cfg["bash_allow"] == []
+    assert cfg["prefix_allow"] == ["wc"] and cfg["bash_allow"] == []
     with pytest.raises(SystemExit):
         deepcrew("approve")
 
@@ -757,34 +770,35 @@ def asked(board, tool, member="alpha", **tool_input):
 
 @pytest.mark.sandbox
 def test_approve_always_says_what_it_put_in_force_and_why_it_put_nothing(lead, deepcrew, tmp_path):
-    command, fetch, mcp = asked(lead, "Bash", command="npm run build"), asked(lead, "WebFetch", url="https://docs.python.org/3/"), asked(lead, "mcp__github__create_issue", title="x")
+    command, fetch, mcp = asked(lead, "Bash", command="git commit -m build"), asked(lead, "WebFetch", url="https://docs.python.org/3/"), asked(lead, "mcp__github__create_issue", title="x")
     code, out, err = deepcrew("approve", command, fetch, mcp, "--always")
-    assert (code, err) == (0, "") and out.splitlines() == [f"{command} allowed (added to the team allowlist)",
+    assert (code, err) == (0, "") and out.splitlines() == [f"{command} allowed (`git commit` commands run without asking from now on)",
                                                            f"{fetch} allowed (members reach docs.python.org without asking)",
                                                            f"{mcp} allowed (members use mcp__github__create_issue without asking)"]
     cfg = read_json(lead.dir / "team.json")
-    assert cfg["exact_allow"] == ["npm run build"] and cfg["tool_allow"] == ["mcp__github__create_issue"] and lead.sites() == ["docs.python.org"]
+    assert cfg["prefix_allow"] == ["git commit"] and cfg["tool_allow"] == ["mcp__github__create_issue"] and lead.sites() == ["docs.python.org"]
     assert (cfg["sites"][0]["by"], read_json(lead.dir / "perms" / f"{fetch}.json")["widened"]["kind"]) == ("leader", "site")
     nothing = {asked(lead, "Edit", file_path="docs/x.md"): "Edit calls are answered one by one",
                asked(lead, "WebFetch", url="http://127.0.0.1:8000/"): "127.0.0.1 is an address, not a domain name, so it is approved call by call",
                asked(lead, "WebFetch", url="https://docs.python.org/3/library/"): "docs.python.org is among the team's sites already",
                asked(lead, "mcp__deepcrew__message", to="leader"): "'mcp__deepcrew__message' is one of deepcrew's own tools, which members use without asking already",
-               asked(lead, "Bash", command="cat /etc/hosts"): "'cat /etc/hosts' names a place outside the project (/etc/hosts), so it is approved call by call"}
+               asked(lead, "Bash", command="cat /etc/hosts"): "'cat /etc/hosts' runs without asking already"}
     for rid, why in nothing.items():
         assert deepcrew("approve", rid, "--always")[1] == f"{rid} allowed (nothing to widen: {why})\n", why
     plain, denied = asked(lead, "WebFetch", url="https://pypi.org/simple/"), asked(lead, "mcp__github__list_issues")
     assert deepcrew("approve", plain)[1] == f"{plain} allowed\n"
     assert deepcrew("approve", denied, "--deny", "--always")[1] == f"{denied} denied\n"
     after = read_json(lead.dir / "team.json")
-    assert lead.sites() == ["docs.python.org"] and after["tool_allow"] == ["mcp__github__create_issue"] and after["exact_allow"] == ["npm run build"]
+    assert lead.sites() == ["docs.python.org"] and after["tool_allow"] == ["mcp__github__create_issue"] and after["prefix_allow"] == ["git commit"]
 
 
 @pytest.mark.sandbox
 def test_the_inbox_shows_what_always_would_do_and_offers_it_only_when_it_would_do_something(lead, deepcrew, tmp_path):
-    command, fetch, mcp = asked(lead, "Bash", command="npm run build"), asked(lead, "WebFetch", url="https://docs.python.org/3/"), asked(lead, "mcp__github__create_issue")
+    command, fetch, mcp = asked(lead, "Bash", command="git commit -m build"), asked(lead, "WebFetch", url="https://docs.python.org/3/"), asked(lead, "mcp__github__create_issue")
     compound, edit = asked(lead, "Bash", command="wc a && wc b"), asked(lead, "Edit", file_path="docs/x.md")
     out = deepcrew("inbox")[1]
-    assert f"permission {command} from alpha: Bash {{\"command\": \"npm run build\"}}\n  answer: deepcrew approve {command} [--deny] [--always: `npm run build` runs without asking from now on]\n" in out + "\n"
+    assert (f"permission {command} from alpha: Bash {{\"command\": \"git commit -m build\"}}\n  answer: deepcrew approve {command} [--deny] "
+            f"[--always: `git commit` commands run without asking from now on]\n") in out + "\n"
     assert f"  answer: deepcrew approve {fetch} [--deny] [--always: members reach docs.python.org without asking]\n" in out + "\n"
     assert f"  answer: deepcrew approve {mcp} [--deny] [--always: members use mcp__github__create_issue without asking]\n" in out + "\n"
     assert f"  answer: deepcrew approve {compound} [--deny]\n" in out + "\n" and f"  answer: deepcrew approve {edit} [--deny]\n" in out + "\n"
@@ -796,7 +810,7 @@ def test_the_inbox_shows_what_always_would_do_and_offers_it_only_when_it_would_d
     assert f"  answer: deepcrew approve {linkable} [--deny] [--link]\n  outside the project: {folder} (reading)" in out
     data = json.loads(deepcrew("inbox", "--json")[1])
     kinds = {r["id"]: (r["widening"] or {}).get("kind") for r in data["permission_requests"]}
-    assert kinds == {command: "command", fetch: "site", mcp: "tool", compound: None, edit: None, linkable: None}
+    assert kinds == {command: "prefix", fetch: "site", mcp: "tool", compound: None, edit: None, linkable: None}
     assert sorted(data["new"]) == []
     first = json.loads(deepcrew("status", "--json")[1])["permission_requests"]
     assert {r["id"]: (r["widening"] or {}).get("kind") for r in first} == kinds
@@ -804,11 +818,11 @@ def test_the_inbox_shows_what_always_would_do_and_offers_it_only_when_it_would_d
 
 @pytest.mark.sandbox
 def test_the_text_of_what_always_would_do_writes_home_paths_with_a_tilde(lead, deepcrew, project):
-    rid = asked(lead, "Bash", command=f"npm test --prefix {project.as_posix()}")
+    rid = asked(lead, "Bash", command=f"rm {project.as_posix()}/build/x.o")
     out = deepcrew("inbox")[1]
     assert Path.home().as_posix() in out.splitlines()[0]
-    assert f"  answer: deepcrew approve {rid} [--deny] [--always: `npm test --prefix ~/proj` runs without asking from now on]" in out
-    assert json.loads(deepcrew("inbox", "--json")[1])["permission_requests"][0]["widening"]["value"] == f"npm test --prefix {project.as_posix()}"
+    assert f"  answer: deepcrew approve {rid} [--deny] [--always: `rm ~/proj/build/x.o` runs without asking from now on]" in out
+    assert json.loads(deepcrew("inbox", "--json")[1])["permission_requests"][0]["widening"]["value"] == f"rm {project.as_posix()}/build/x.o"
 
 
 def test_the_inbox_keys_of_permission_requests_do_not_change_with_what_always_would_do(lead, deepcrew):
@@ -826,7 +840,7 @@ def test_the_inbox_says_what_the_users_allow_put_in_force(lead, deepcrew):
     for rid in ids.values():
         policy.answer_permission(lead, rid, True, by="user")
     out = deepcrew("inbox")[1]
-    assert f"the user answered {ids['command']} from alpha on the page: allowed (added to the team allowlist): Bash" in out
+    assert f"the user answered {ids['command']} from alpha on the page: allowed (`wc` commands run without asking from now on): Bash" in out
     assert f"the user answered {ids['site']} from alpha on the page: allowed (members reach api.render.com without asking): WebFetch" in out
     assert f"the user answered {ids['tool']} from alpha on the page: allowed (members use mcp__render__list without asking): mcp__render__list" in out
     assert f"the user answered {ids['none']} from alpha on the page: allowed: Edit" in out
@@ -1220,10 +1234,10 @@ def test_allow_lists_each_command_with_where_it_came_from(allowing, deepcrew):
     rid = allowing.request("perms", "alpha", {"tool": "Bash", "input": {"command": "wc -c"}, "tool_use_id": None, "always": False})["id"]
     policy.answer_permission(allowing, rid, True, by="user")
     assert deepcrew("allow", "cat")[0] == 0
-    assert listed_commands(deepcrew) == {"ls": "settings", "wc -l": "settings", "du -sh": "pack", "cat": "approved by leader", "wc -c": "approved by user, exactly this command"}
-    assert list(listed_commands(deepcrew))[-1] == "wc -c"
+    assert listed_commands(deepcrew) == {"ls": "settings", "wc -l": "settings", "du -sh": "pack", "cat": "approved by leader", "wc": "approved by user, every command it starts"}
+    assert list(listed_commands(deepcrew))[-1] == "wc"
     assert cli.allow_sources(allowing) == [{"command": c, "source": s} for c, s in listed_commands(deepcrew).items()]
-    assert [(r["command"], r["by"], r["on"], r["exact"]) for r in read_jsonl_rows(allowing)] == [("wc -c", "user", True, True), ("cat", "leader", True, False)]
+    assert [(r["command"], r["by"], r["on"], r["exact"]) for r in read_jsonl_rows(allowing)] == [("wc", "user", True, False), ("cat", "leader", True, False)]
 
 
 def read_jsonl_rows(board):
@@ -1661,3 +1675,18 @@ def test_audit_accepts_an_edit_its_task_lease_allowed_and_names_the_lease(lead, 
     assert (files["README.md"]["flags"], files["README.md"]["leased_to"]) == ([], ["alpha"])
     assert (files["docs/guide.md"]["owner"], files["docs/guide.md"]["flags"], files["docs/guide.md"]["leased_to"]) == ("beta", [], ["alpha"])
     assert "lease=alpha" in deepcrew("audit")[1]
+
+
+def test_up_puts_the_teams_note_in_claude_local_md_and_stop_all_takes_it_out(deepcrew, project, providers_toml, monkeypatch):
+    providers_toml()
+    monkeypatch.setenv("FAKE_KEY", KEY)
+    note = project / cli.LOCAL_MEMORY
+    assert deepcrew(*UP)[0] == 0
+    text = note.read_text()
+    assert text.startswith("<!-- deepcrew team main: begin -->\ndeepcrew team main is running for this project.") and "deepcrew stop --all" in text
+    assert subprocess.run(["git", "-C", str(project), "status", "--porcelain"], capture_output=True, text=True).stdout == ""
+    assert deepcrew(*UP)[0] == 0 and note.read_text() == text
+    assert deepcrew("stop", "--all")[0] == 0 and not note.exists()
+    note.write_text("# mine\n\nKeep tests fast.\n")
+    assert deepcrew(*UP)[0] == 0 and note.read_text().startswith("# mine\n\nKeep tests fast.\n\n<!-- deepcrew team main: begin -->")
+    assert deepcrew("stop", "--all")[0] == 0 and note.read_text() == "# mine\n\nKeep tests fast.\n"

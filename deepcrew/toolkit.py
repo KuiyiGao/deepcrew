@@ -129,6 +129,14 @@ def _table(data, *via: str) -> dict:
     return table if isinstance(table, dict) else {}
 
 
+def _places(project) -> list[tuple[dict, str]]:
+    root = Path(extensions.project_key(project))
+    mine, theirs = _json_file(root / ".mcp.json"), _json_file(Path.home() / ".claude.json")
+    keys = dict.fromkeys(k for p in (root, Path(os.path.abspath(project or os.getcwd()))) for k in (str(p), str(p).replace("\\", "/")))
+    return [(_table(mine), "the project's .mcp.json"), (_table(theirs), "your Claude Code settings (~/.claude.json)"),
+            *((_table(theirs, "projects", k), "your Claude Code settings for this project (~/.claude.json)") for k in keys)]
+
+
 def _found(project, name: str, source: str | None) -> tuple[dict, str]:
     if source:
         path = Path(source).expanduser()
@@ -142,11 +150,7 @@ def _found(project, name: str, source: str | None) -> tuple[dict, str]:
             raise ValueError(f"{providers.shown(path)} has no MCP server named {name!r} in \"mcpServers\""
                              + (f" (it has {', '.join(sorted(table))})" if table else ""))
         return table[name], providers.shown(path)
-    root = Path(extensions.project_key(project))
-    mine, theirs = _json_file(root / ".mcp.json"), _json_file(Path.home() / ".claude.json")
-    keys = dict.fromkeys(k for p in (root, Path(os.path.abspath(project or os.getcwd()))) for k in (str(p), str(p).replace("\\", "/")))
-    places = [(_table(mine), "the project's .mcp.json"), (_table(theirs), "your Claude Code settings (~/.claude.json)"),
-              *((_table(theirs, "projects", k), "your Claude Code settings for this project (~/.claude.json)") for k in keys)]
+    places = _places(project)
     for table, where in places:
         if name in table:
             return table[name], where
@@ -288,6 +292,20 @@ def remove_mcp(project, name: str) -> None:
 
 def mcp_list(project) -> list[dict]:
     return [_row(project, n, e) for n, e in _section(project, "mcp").items()]
+
+
+def mcp_names(project) -> list[str]:
+    return list(_section(project, "mcp"))
+
+
+def mcp_candidates(project) -> list[dict]:
+    places = _places(project)
+    given, found = set(mcp_names(project)), {}
+    for table, where in places:
+        for name, server in table.items():
+            if name not in found and name != OWN and isinstance(name, str) and VALID_NAME.fullmatch(name) and isinstance(server, dict):
+                found[name] = {"name": name, "where": where, "command": _command(server), "given": name in given}
+    return [found[n] for n in sorted(found)]
 
 
 def mcp_servers(project) -> dict[str, dict]:
@@ -513,6 +531,25 @@ def skill_list(project) -> list[dict]:
 
 def skill_names(project) -> list[str]:
     return list(_section(project, "skills"))
+
+
+def skill_candidates(project) -> list[dict]:
+    root = Path(extensions.project_key(project))
+    given, found = set(skill_names(project)), {}
+    for base, where in ((root / ".claude" / "skills", "the project's .claude/skills"), (Path.home() / ".claude" / "skills", "~/.claude/skills")):
+        try:
+            names = sorted(e.name for e in os.scandir(base) if e.is_dir())
+        except OSError:
+            continue
+        for name in names:
+            if name in found or name in (OWN, providers.NAME.lower()) or not VALID_NAME.fullmatch(name) or not (base / name / "SKILL.md").is_file():
+                continue
+            try:
+                description = _described((base / name / "SKILL.md").read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                description = ""
+            found[name] = {"name": name, "where": f"{where}/{name}", "description": description, "given": name in given}
+    return [found[n] for n in sorted(found)]
 
 
 def _install(board, name: str, shared: Path, state: Path) -> None:

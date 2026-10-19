@@ -40,6 +40,8 @@ function world(on: On, status: () => object | null, page = 'http://127.0.0.1:434
   mock.env(on, env)
   const posted: Posted[] = []
   const ran: string[][] = []
+  const inbox: { text: string }[] = []
+  const prompts: string[] = []
   const toasts: string[] = []
   const lines: (string | undefined)[] = []
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -62,7 +64,7 @@ function world(on: On, status: () => object | null, page = 'http://127.0.0.1:434
     if (missing.includes(e.argv[0] ?? '')) {
       return { deny: `${e.argv[0]}: not found` }
     }
-    const found = e.argv[1] === 'ui' ? { url: page } : status()
+    const found = e.argv[1] === 'ui' ? { url: page } : e.argv[1] === 'inbox' ? { messages: inbox.splice(0) } : e.argv[1] === 'send' ? {} : status()
     const out: ProcessRunResult = { exitCode: found ? 0 : 1, stdout: found ? JSON.stringify(found) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
     return { value: out }
   })
@@ -71,7 +73,14 @@ function world(on: On, status: () => object | null, page = 'http://127.0.0.1:434
     const res: HttpResponse = { status: 200, ok: true, headers: {}, text: '{}' }
     return { value: res }
   })
-  return { posted, ran, toasts, lines }
+  on('prompt.submit', ($, e) => {
+    prompts.push(e.text)
+    return { text: e.text }
+  })
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('tool.call', () => ({ result: { stdout: '', stderr: '', interrupted: false } }) as never)
+  return { posted, ran, toasts, lines, inbox, prompts }
 }
 
 test('the oldest request waits above the prompt, and Allow answers it through the team page as the user, on every surface', async ($, on) => {
@@ -145,4 +154,50 @@ test('when Claude Code cannot find deepcrew on its PATH, the copy in ~/.local/bi
   expect(ran.slice(0, 2).map(argv => argv[0])).toEqual(['deepcrew', '/Users/me/.local/bin/deepcrew'])
   expect((await $.command.run({ command: 'crew', args: '', ...TYPED })).text).toMatch(/^team main: /)
   expect(ran.at(-1)?.[0]).toBe('/Users/me/.local/bin/deepcrew')
+})
+
+const ANSWERED = { durationMs: 900, isAborted: false, turnId: 't1', reason: 'answer' } as const
+
+test('what the user writes to the leader on the team page comes here as a prompt, and the answer goes back to the page', async ($, on) => {
+  const clock = mock.clock(on)
+  let waiting = 1
+  const w = world(on, () => ({ ...STATUS, user_messages: waiting }))
+  w.inbox.push({ text: 'Add a dark mode, please.' })
+  await $.session.start({ cwd: '/work/app', surface: 'desktop', isInteractive: true })
+  await clock.settle()
+  expect(w.ran).toContainEqual(['deepcrew', 'inbox', '--from-user', '--json', '--team', 'main'])
+  expect(w.prompts).toEqual([
+    'On the team page the user wrote to you, the leader of team main:\n\n> Add a dark mode, please.\n\n' +
+      'Answer as you would in this chat. Your answer is shown on the team page too, so there is no need to send it there.',
+  ])
+  waiting = 0
+  await $.turn.start({ text: w.prompts[0]!, turnId: 't1' })
+  await $.turn.complete({ answer: 'On it: alpha takes the dark mode.', ...ANSWERED })
+  await clock.settle()
+  expect(w.ran.at(-1)).toEqual(['deepcrew', 'send', 'user', 'On it: alpha takes the dark mode.', '--team', 'main'])
+  await $.turn.start({ text: 'And the chart?', turnId: 't2' })
+  await $.turn.complete({ answer: 'Another turn.', ...ANSWERED, turnId: 't2' })
+  await clock.settle()
+  expect(w.ran.filter(argv => argv[1] === 'send')).toHaveLength(1)
+})
+
+test('a turn the user started here stays here, and so does one whose answer the leader sent to the page itself', async ($, on) => {
+  const clock = mock.clock(on)
+  let waiting = 0
+  const w = world(on, () => ({ ...STATUS, user_messages: waiting }))
+  await $.session.start({ cwd: '/work/app', surface: 'desktop', isInteractive: true })
+  await clock.settle()
+  await $.turn.start({ text: 'How is the crew doing?', turnId: 't0' })
+  await $.turn.complete({ answer: 'Two of three tasks are done.', ...ANSWERED, turnId: 't0' })
+  await clock.settle()
+  w.inbox.push({ text: 'Is the chart done?' })
+  waiting = 1
+  await clock.advance(3000)
+  expect(w.prompts.at(-1)).toMatch(/^On the team page the user wrote to you/)
+  waiting = 0
+  await $.turn.start({ text: w.prompts.at(-1)!, turnId: 't3' })
+  await $.tool.call({ tool: 'Bash', command: 'deepcrew send user "Not yet: ui is on it."', description: 'tell the user' })
+  await $.turn.complete({ answer: 'I told the user on the page.', ...ANSWERED, turnId: 't3' })
+  await clock.settle()
+  expect(w.ran.filter(argv => argv[1] === 'send')).toEqual([])
 })

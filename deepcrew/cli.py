@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -124,6 +125,67 @@ def record_leader(project: Path, team: str, team_dir: Path) -> None:
     if sid:
         (state_home() / "leaders").mkdir(parents=True, exist_ok=True)
         write_json(state_home() / "leaders" / f"{sid}.json", {"project": str(project), "team": team, "team_dir": str(team_dir), "ts": time.time()})
+
+
+LOCAL_MEMORY = "CLAUDE.local.md"
+
+
+def _binding_marks(team: str) -> tuple[str, str]:
+    return f"<!-- deepcrew team {team}: begin -->", f"<!-- deepcrew team {team}: end -->"
+
+
+def _without_note(text: str, team: str) -> str:
+    begin, end = _binding_marks(team)
+    lines, out, inside = text.splitlines(), [], False
+    for line in lines:
+        if line.strip() == begin:
+            inside = True
+        elif inside and line.strip() == end:
+            inside = False
+        elif not inside:
+            out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip("\n")
+
+
+def bind_claude(board: Board) -> None:
+    path, team = board.root / LOCAL_MEMORY, board.cfg["team"]
+    try:
+        old = path.read_text(encoding="utf-8") if path.exists() else None
+    except (OSError, UnicodeDecodeError):
+        return
+    begin, end = _binding_marks(team)
+    rest = _without_note(old or "", team)
+    note = f"{begin}\n{prompts.render('leader_binding', board.cfg, team=team, cmd=CMD)}\n{end}\n"
+    new = (rest + "\n\n" if rest else "") + note
+    if new != old:
+        with contextlib.suppress(OSError):
+            path.write_text(new, encoding="utf-8")
+    if old is None and subprocess.run(["git", "-C", str(board.root), "check-ignore", "-q", LOCAL_MEMORY], capture_output=True,
+                                      encoding="utf-8", errors="replace").returncode == 1:
+        got = subprocess.run(["git", "-C", str(board.root), "rev-parse", "--git-path", "info/exclude"], capture_output=True, encoding="utf-8", errors="replace")
+        if got.returncode == 0 and got.stdout.strip():
+            exclude = Path(got.stdout.strip()) if os.path.isabs(got.stdout.strip()) else board.root / got.stdout.strip()
+            with contextlib.suppress(OSError):
+                exclude.parent.mkdir(parents=True, exist_ok=True)
+                lines = exclude.read_text(encoding="utf-8").splitlines() if exclude.exists() else []
+                if f"/{LOCAL_MEMORY}" not in lines:
+                    exclude.write_text("\n".join([*lines, f"/{LOCAL_MEMORY}"]) + "\n", encoding="utf-8")
+
+
+def unbind_claude(board: Board) -> None:
+    path, team = board.root / LOCAL_MEMORY, board.cfg["team"]
+    try:
+        old = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return
+    if _binding_marks(team)[0] not in old:
+        return
+    rest = _without_note(old, team)
+    with contextlib.suppress(OSError):
+        if rest.strip():
+            path.write_text(rest + "\n", encoding="utf-8")
+        else:
+            path.unlink()
 
 
 def release_leader(team_dir: Path) -> None:
@@ -377,6 +439,7 @@ def cmd_up(a) -> int:
                                 "DEEPCREW_EFFORT": member_cfg["effort"] or "default"})
     board.reap(member.living)
     record_leader(project, a.team, board.dir)
+    bind_claude(board)
     before = setup_state(board)
     needs = {"key": not has_key, "confirm": not chosen or bool(before and "confirm" in before["missing"])}
     if any(needs.values()):
@@ -590,6 +653,14 @@ def turn_text(m: dict) -> str:
     return f"  turn={minutes}m {t.get('doing', '')}" + (f", about {tokens // 1000}k tokens so far" if tokens >= 1000 else "")
 
 
+def load_line(look: dict) -> str:
+    parts = [f"{k} {round(v * 100)}%" + (" available" if k == "memory" else "") for k, v in
+             (("processor", look.get("cpu")), ("memory", look.get("mem")), ("GPU", look.get("gpu"))) if isinstance(v, (int, float))]
+    what = ("no member starts beyond those running" if look["level"] == "busy"
+            else "one member runs at a time, and members waiting between turns are ended until it eases")
+    return f"host      {look['level']} ({', '.join(parts)}): {what}"
+
+
 def cmd_status(a) -> int:
     board = _board(a)
     board.reap(member.living)
@@ -597,7 +668,7 @@ def cmd_status(a) -> int:
     usage = {m["name"]: member.usage(board, m["name"]) for m in members}
     obj = {"tasks": tasks, "members": members, "usage": usage, "blocked": plan["blocked"], "waiting": plan["waiting"], "notes": plan["notes"],
            "permission_requests": with_widening(board, board.pending("perms")), "questions": board.pending("questions"),
-           "unread": len(board.mail_pending("leader")),
+           "unread": len(board.mail_pending("leader")), "user_messages": len(user_messages(board)),
            "budget": member.budget_state(board), "paused": board.paused(), "provider": provider_view(board.cfg), "reviewer": review.tally(board)}
     obj["proposals"] = plan["proposals"]
     url = page_url(board.dir)
@@ -611,7 +682,9 @@ def cmd_status(a) -> int:
     lines += [f"blocked {b['task']}: {b['reason']}" for b in plan["blocked"]] + [f"note: {n}" for n in plan["notes"]]
     lines += _proposal_lines(plan["proposals"])
     lines += [_item_line("capacity", plan["capacity"])] if plan["capacity"] else []
+    lines += [load_line(plan["load"])] if plan.get("load") and plan["load"]["level"] != "ok" else []
     obj["capacity"], obj["helpers"], obj["leader_summary"] = plan["capacity"], plan["helpers"], (board.summaries(1) or [None])[0]
+    obj["load"] = plan.get("load")
     lines += [f"summary   {obj['leader_summary']['text'].splitlines()[0][:160]}"] if obj["leader_summary"] else []
     lines += [f"{len(obj['permission_requests'])} permission request(s), {len(obj['questions'])} question(s), {obj['unread']} unread "
               f"message(s): {CMD} inbox"]
@@ -648,8 +721,16 @@ def cmd_prices(a) -> int:
     return 0
 
 
+def user_messages(board: Board) -> list[tuple]:
+    return [(p, m) for p, m in board.peek_mail("leader", only_from="user") if m.get("kind") == "message"]
+
+
 def cmd_inbox(a) -> int:
     board = _board(a)
+    if a.from_user:
+        taken = board.ack_mail(user_messages(board))
+        _print(a, {"messages": [{k: m.get(k) for k in ("ts", "text", "task")} for m in taken]}, [m["text"] for m in taken])
+        return 0
     seen_file = board.dir / "run" / "inbox-seen.json"
     seen = set(read_json(seen_file)) if seen_file.exists() else set()
     deadline = time.monotonic() + (a.wait or 0)
@@ -803,7 +884,8 @@ def allow_sources(board: Board) -> list[dict]:
             by[row.get("command")] = row.get("by")
     return [{"command": c, "source": f"approved by {by.get(c) or 'leader'}" if c in cfg.get("approved_allow", [])
              else "pack" if c in cfg.get("pack_allow", []) else "settings"} for c in cfg.get("bash_allow", [])] + \
-        [{"command": c, "source": f"approved by {by.get(c) or 'leader'}, exactly this command"} for c in cfg.get("exact_allow", [])]
+        [{"command": c, "source": f"approved by {by.get(c) or 'leader'}, exactly this command"} for c in cfg.get("exact_allow", [])] + \
+        [{"command": c, "source": f"approved by {by.get(c) or 'leader'}, every command it starts"} for c in cfg.get("prefix_allow", [])]
 
 
 def tool_sources(board: Board) -> list[dict]:
@@ -954,6 +1036,7 @@ def cmd_stop(a) -> int:
         for copy in (board.dir / "secret").glob("*.key"):
             copy.unlink(missing_ok=True)
         release_leader(board.dir)
+        unbind_claude(board)
         from . import ui
         if ui.stop_page(board.dir):
             print("page: closed")
@@ -1118,7 +1201,8 @@ def parser(project=None) -> argparse.ArgumentParser:
         many("--scope"), many("--dep"), one("--strength", choices=list(presets.STRENGTHS)), flag("--no-route"),
         one("--to", help="give the task to this member at once: nobody else is offered it"))
     cmd("status", cmd_status, "tasks, members, proposals, blocked tasks")
-    cmd("inbox", cmd_inbox, "permission requests, questions, messages and proposals for the leader", one("--wait", type=float))
+    cmd("inbox", cmd_inbox, "permission requests, questions, messages and proposals for the leader", one("--wait", type=float),
+        flag("--from-user"))
     cmd("prices", cmd_prices, "the provider's list prices, what they cost now and the next changes (UTC), to choose when the crew works",
         one("--changes", type=int, default=4, help="how many coming changes to list"))
     cmd("approve", cmd_approve, "answer a permission request; --always also lets members do the same without asking (the inbox says what it adds), "

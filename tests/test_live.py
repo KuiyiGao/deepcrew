@@ -110,7 +110,7 @@ def test_the_snapshot_carries_the_decisions_with_who_made_them(crew):
     assert (by_id[denied]["state"], by_id[denied]["by"], by_id[denied]["always"]) == ("denied", "leader", False)
     assert (by_id[q]["kind"], by_id[q]["state"], by_id[q]["by"], by_id[q]["what"]) == ("question", "answered", "user", "casual")
     allow = [r for r in rows if r["kind"] == "allow"]
-    assert sorted((r["what"], r["state"], r["by"]) for r in allow) == [("du -sh", "removed", "leader"), ("ls docs", "added", "user")]
+    assert sorted((r["what"], r["state"], r["by"]) for r in allow) == [("du -sh", "removed", "leader"), ("ls", "added", "user")]
     assert set(rows[0]) == {"kind", "id", "member", "state", "by", "ts", "always", "widened", "what"}
     json.dumps(rows)
 
@@ -1237,9 +1237,10 @@ def test_the_page_opens_on_settings_until_there_is_a_team_unless_a_tab_was_picke
     assert "else if (snap.team && !chosen) show('call', true);" in text
 
 
-def test_the_header_shows_the_team_a_dot_a_member_raised_hands_the_tasks_as_a_bar_and_the_spend_as_a_tank():
+def test_the_header_shows_the_team_a_dot_a_member_raised_hands_the_tasks_as_a_bar_the_spend_as_a_tank_and_the_hosts_load():
     text = page_text()
-    assert "chipsEl.append(teamChip, crewChip, needChip, doneChip, spendChip);" in text and "icon('hand'), needN);" in text
+    assert "chipsEl.append(teamChip, crewChip, needChip, doneChip, spendChip, hostChip);" in text and "icon('hand'), needN);" in text
+    assert "hostChip.dataset.level = ld.level;" in text and ".lv-chip-s.host[data-level=full] .gg i { background: var(--bad); }" in text
     assert "class: asks.has(m.name) ? 'ask'" in text and "m.state === 'active' || m.state === 'starting' ? 'on' : ''" in text
     assert "tasksBar.set(total ? c.done / total : 0)" in text and "spendTank.set(b.usd ? (spent || 0) / b.usd" in text
     assert "frac >= 0.9 ? 'var(--bad)' : frac >= 0.7 ? 'var(--warn)'" in text
@@ -1266,7 +1267,8 @@ def test_whoever_sends_or_receives_lights_up_and_a_member_that_asks_raises_a_han
 def test_the_monitor_is_a_network_a_task_table_and_folded_panes_an_add_on_may_add_to():
     text = page_text()
     assert "h('h2', {}, 'Network ', h('span', { class: 'sl' }, '/'), ' Blackboard')" in text and "h('th', {}, 'Waiting')" in text
-    assert "const act = pane('Activity'), dec = pane('Decisions'), cost = pane('Cost');" in text and "\n    pane,\n" in text
+    assert "const act = pane('Activity'), dec = pane('Decisions'), cost = pane('Cost'), tools = pane('Tools');" in text and "\n    pane,\n" in text
+    assert "if (id === 'tools') return tools.el.hidden ? null : tools.el.firstChild;" in text
     assert "s.snap.members.length > 6 || net.clientWidth < 900" in text
 
 
@@ -1303,3 +1305,66 @@ def test_the_reply_language_is_one_on_offer_and_its_script_shows_in_a_gist():
     assert board_module.reply_lang({"reply_lang": "Klingon"}) == "English" and board_module.LANGS[0] == "English"
     assert board_module.in_lang("anything at all", "Spanish") and board_module.in_lang("\uc548\ub155", "Korean") and not board_module.in_lang("hello", "Korean")
     assert board_module.in_lang("\u3053\u3093\u306b\u3061\u306f", "Japanese") and not board_module.in_lang("ok", "Russian")
+
+
+def tool_line(*blocks, ts="2027-01-15T08:00:00Z"):
+    return json.dumps({"type": "assistant", "timestamp": ts, "message": {"id": "a1", "content": list(blocks)}}) + "\n"
+
+
+def tool_use(uid, name, **given):
+    return {"type": "tool_use", "id": uid, "name": name, "input": given}
+
+
+def test_tool_use_counts_the_users_servers_and_skills_by_member_once_a_call_and_reads_on(crew):
+    logs, use = crew.dir / "logs", live.ToolUse(crew)
+    (logs / "alpha.ndjson").write_text(tool_line(tool_use("1", "mcp__files__read", path="x"), tool_use("2", "mcp__deepcrew__message", to="leader"))
+                                       + tool_line(tool_use("1", "mcp__files__read")) + tool_line(tool_use("3", "Skill", skill="greet")))
+    got = use(["alpha", "beta"])
+    assert got["mcp"] == {"files": {"calls": 1, "by": {"alpha": 1}, "last": datetime(2027, 1, 15, 8, tzinfo=UTC).timestamp(), "tools": {"read": 1}}}
+    assert list(got["skills"]) == ["greet"]
+    got["mcp"]["files"]["calls"] = 99
+    with open(logs / "alpha.ndjson", "a") as f:
+        f.write(tool_line(tool_use("4", "mcp__files__write")) + '{"type": "assistant", "mess')
+    (logs / "beta.ndjson").write_text(tool_line(tool_use("5", "Skill", command="/greet now")))
+    got = use(["alpha", "beta"])
+    assert got["mcp"]["files"]["calls"] == 2 and got["mcp"]["files"]["tools"] == {"read": 1, "write": 1}
+    assert got["skills"]["greet"]["by"] == {"alpha": 1, "beta": 1}
+
+
+def test_a_member_using_a_tool_is_an_event_from_it_to_the_tools_and_the_snapshot_names_what_is_given(crew, project):
+    from deepcrew import toolkit
+    obs = live.Observer(crew)
+    prev = obs.observe()
+    (crew.dir / "logs" / "alpha.ndjson").write_text(tool_line(tool_use("1", "mcp__files__read"), tool_use("2", "mcp__files__read"), tool_use("3", "Skill", skill="greet")))
+    cur = obs.observe()
+    evs = [e for e in live.events(prev, cur) if e["kind"] == "tool"]
+    assert [(e["from"], e["to"], e["tool_kind"], e["name"], e["calls"], e["label"]) for e in evs] == [
+        ("m:alpha", "tools", "mcp", "files", 2, "alpha used MCP server files: read"), ("m:alpha", "tools", "skills", "greet", 1, "alpha used skill greet")]
+    assert [e for e in live.events(cur, obs.observe()) if e["kind"] == "tool"] == []
+    (project / ".claude" / "skills" / "greet").mkdir(parents=True)
+    (project / ".claude" / "skills" / "greet" / "SKILL.md").write_text("---\nname: greet\ndescription: Greets.\n---\nHello.\n")
+    toolkit.add_skill(crew.root, "greet")
+    snap = live.snapshot(crew, obs=obs.observe())
+    assert snap["tools"]["given"] == {"mcp": [], "skills": ["greet"]} and snap["tools"]["mcp"]["files"]["calls"] == 2
+
+
+def test_a_question_waiting_for_the_user_shows_its_deadline_and_the_leader_gets_it_after(crew, monkeypatch):
+    from deepcrew import inbox
+    from deepcrew.board import PAGE_SEEN
+    hub = live.Hub(crew.dir)
+    hub._attach()
+    hub.subscribe()
+    hub._seen()
+    assert (crew.dir / "run" / PAGE_SEEN).exists() and crew.page_watched()
+    obs = live.Observer(crew)
+    prev = obs.observe()
+    with crew.locked():
+        q = crew.request("questions", "alpha", {"question": "Keep the old parser?", "answer": None, "options": ["Keep", "Drop"], "gist": "\u4fdd\u7559\u65e7\u89e3\u6790\u5668\u5417\uff1f",
+                                                "user_until": crew.user_window()})
+    pending = live.snapshot(crew, obs=obs.observe())["pending"]["questions"]
+    assert [(x["id"], x["gist"], x["user_until"]) for x in pending] == [(q["id"], "\u4fdd\u7559\u65e7\u89e3\u6790\u5668\u5417\uff1f", q["user_until"])]
+    ev = next(e for e in live.events(prev, obs.observe()) if e["kind"] == "question")
+    assert (ev["user"], ev["options"], ev["to"]) == (True, ["Keep", "Drop"], "leader")
+    assert f"question:{q['id']}" not in inbox.inbox_items(crew)
+    monkeypatch.setattr(time, "time", lambda: q["user_until"] + 1)
+    assert f"question:{q['id']}" in inbox.inbox_items(crew)

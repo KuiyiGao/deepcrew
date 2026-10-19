@@ -6,6 +6,7 @@ import threading
 import time
 
 from . import extensions, member, policy, providers
+from . import load as host_load
 from . import presets
 from .board import RESERVED, Board
 
@@ -135,14 +136,15 @@ def _plan(board: Board) -> dict:
         taken.add(g["name"])
     wake = [] if board.paused() else [m["name"] for m in members if m["name"] not in running | failed
                                       and (_own_offer(board, m) or _waking_mail(board, m["name"]) or m["name"] in nudge)]
-    slots = max(0, board.cfg["max_active"] - len(running))
+    look = host_load.sample() if host_load.guard_on() else None
+    slots = max(0, host_load.limit(look, board.cfg["max_active"], len(running)) - len(running))
     ready = sum(t["state"] == "open" and t["scope"] is not None and set(t["deps"]) <= set(done) for t in tasks)
     held = [{"task": t["id"], "title": t["title"], "owner": t["owner"], "helpers": sorted(n for n, h in helps.items() if h["task"] == t["id"])}
             for t in tasks if t["state"] == "claimed"]
     room = len(idle) + max(0, board.cfg["max_active"] - len(members)) - ready
     capacity = {"idle": sorted(idle), "free": max(0, board.cfg["max_active"] - len(members)), "ready": ready, "room": room,
                 "running": held, "done": len(done)} if idle and room > 0 and held else None
-    p = {"wake": wake[:slots], "waiting": wake[slots:], "blocked": blocked, "notes": turn_notes(board, members)}
+    p = {"wake": wake[:slots], "waiting": wake[slots:], "blocked": blocked, "notes": turn_notes(board, members), "load": look}
     p.update(awards=awards, choices=choices, proposals=groups, capacity=capacity, helpers=helps)
     return extensions.chain("route", p, board, project=board.root)
 
@@ -292,7 +294,17 @@ def run(board: Board) -> dict:
                 p["woken"].append(name)
         except Exception as e:
             p["errors"].append(f"wake {name}: {e}")
+    p["eased"] = ease(board, p.get("load"))
     return p
+
+
+def ease(board: Board, look: dict | None) -> list[str]:
+    if not look or look.get("level") != "full":
+        return []
+    names = [m["name"] for m in board.members() if m["state"] == "active" and not m.get("turn") and not m.get("task") and member.alive(m)]
+    for name in names:
+        member._end(board.member(name), False)
+    return names
 
 
 def rest(board: Board, by: str = "leader", wait: bool = True) -> list[str]:

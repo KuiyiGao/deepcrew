@@ -3,6 +3,7 @@ import urllib.request
 from types import SimpleNamespace
 
 import pytest
+import shlex
 
 from deepcrew import inbox, member, policy, providers, review
 from deepcrew.board import read_json
@@ -174,3 +175,12 @@ def test_config_set_review_reaches_the_running_team_and_shows(lead, deepcrew):
     assert code == 0 and read_json(lead.dir / "team.json")["review"] is False and "team main: review on -> off" in out
     assert "review: off" in deepcrew("config", "show")[1].splitlines()
     assert any(line.startswith("reviewer  off") for line in deepcrew("status")[1].splitlines())
+
+
+def test_git_reads_take_the_listing_forms_of_git_commands_that_also_change_things():
+    for command in ("git status", "git log --oneline -5", "git branch", "git branch -a -v", "git branch --show-current", "git tag", "git tag -l 'v*'",
+                    "git remote", "git remote -v", "git stash list", "git config --get user.name", "git -C src branch --list"):
+        assert review.git_reads(shlex.split(command)[1:]), command
+    for command in ("git branch new", "git branch -D old", "git branch -m a b", "git tag v1", "git tag -d v1", "git remote add o url", "git stash",
+                    "git stash pop", "git config user.name x", "git config --unset a", "git commit -m x", "git reset --hard"):
+        assert not review.git_reads(shlex.split(command)[1:]), command

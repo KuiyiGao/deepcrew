@@ -12,7 +12,7 @@ from . import providers
 
 from .paths import covers, fold, git_bash_native, ignores_case, inside, norm, norm_all, overlap, pathmod, relpath, rule_path, within
 from .paths import minimal
-from .shell import SHELL_META, allow_refusal, allowlisted, joined_parts, parts, program, runs_code
+from .shell import SHELL_META, allow_refusal, allowlisted, approval_prefix, joined_parts, parts, program, runs_code
 
 READ_TOOLS = ("Read", "Glob", "Grep")
 SECRET_PATHS = ("~/.ssh", "~/.aws", "~/.gnupg", "~/.netrc", "~/.config/gh", "~/.kube", "~/.docker")
@@ -124,7 +124,14 @@ def decide(board, member: str, tool: str, tool_input: dict) -> dict | None:
         return {"behavior": "allow", "updatedInput": tool_input}
     cfg = board.live_cfg()
     command = tool_input.get("command", "")
-    if (tool == "Bash" and allowlisted(command, cfg["bash_allow"], in_sandbox(board, member), set(cfg.get("exact_allow", [])) - set(cfg.get("allow_off", [])))
+    off = set(cfg.get("allow_off", []))
+    exact, approved = set(cfg.get("exact_allow", [])) - off, [p for p in cfg.get("prefix_allow", []) if p not in off]
+    if tool == "Bash" and isinstance(command, str) and command.strip() and in_sandbox(board, member):
+        from . import review
+        if review.sandbox_screen(board, member, command) is None or allowlisted(command, [], True, exact, approved):
+            return {"behavior": "allow", "updatedInput": tool_input}
+        return None
+    if (tool == "Bash" and allowlisted(command, cfg["bash_allow"], in_sandbox(board, member), exact, approved)
             and not outside(board, command, member)):
         return {"behavior": "allow", "updatedInput": tool_input}
     if tool == "WebFetch" and (host := url_host(tool_input.get("url"))) and any(site_covers(s, host) for s in board.sites()):
@@ -271,7 +278,7 @@ def set_allow(board, command: str, by: str, on: bool = True, exact: bool = False
     command = command.strip() if isinstance(command, str) else ""
     with board.locked():
         cfg = board.live_cfg()
-        lists = {k: cfg.setdefault(k, []) for k in ("bash_allow", "approved_allow", "exact_allow")}
+        lists = {k: cfg.setdefault(k, []) for k in ("bash_allow", "approved_allow", "exact_allow", "prefix_allow")}
         if on:
             if why := allow_refusal(command, bool(cfg.get("sandbox")), exact):
                 return why
@@ -280,7 +287,7 @@ def set_allow(board, command: str, by: str, on: bool = True, exact: bool = False
                     lists[key].append(command)
             cfg["allow_off"] = [c for c in cfg.get("allow_off", []) if c != command]
         else:
-            if command not in lists["bash_allow"] + lists["exact_allow"]:
+            if command not in lists["bash_allow"] + lists["exact_allow"] + lists["prefix_allow"]:
                 return f"{command!r} is not on the allowlist"
             for key in lists:
                 cfg[key] = [c for c in lists[key] if c != command]
@@ -330,6 +337,12 @@ def _widen(board, r: dict) -> tuple[dict | None, str]:
     if tool == "Bash":
         command = ti.get("command")
         command = command.strip() if isinstance(command, str) else ""
+        prefixes = _prefixes(board, r.get("member"), command)
+        if prefixes:
+            shown = ", ".join(f"`{p}`" for p in prefixes)
+            return {"kind": "prefix", "value": prefixes, "text": f"{shown} commands run without asking from now on"}, ""
+        if prefixes == []:
+            return None, f"{command!r} runs without asking already"
         if why := allow_refusal(command, bool(board.live_cfg().get("sandbox")), exact=True):
             return None, why
         if away := outside(board, command, r.get("member")):
@@ -356,6 +369,44 @@ def _widen(board, r: dict) -> tuple[dict | None, str]:
     return None, f"{tool} calls are answered one by one" + (" (--link opens its folder for every member)" if r.get("folder") else "")
 
 
+def _prefixes(board, member: str | None, command: str) -> list[str] | None:
+    import shlex
+    from . import review
+    found = parts(command) if command else None
+    if not found:
+        return None
+    sandboxed, cfg = in_sandbox(board, member), board.live_cfg()
+    if not sandboxed and outside(board, command, member):
+        return None
+    off = set(cfg.get("allow_off", []))
+    exact, approved, out = set(cfg.get("exact_allow", [])) - off, [p for p in cfg.get("prefix_allow", []) if p not in off], []
+    for words in found:
+        one = shlex.join(words)
+        if (sandboxed and review.sandbox_screen(board, member or "", one) is None) or allowlisted(one, cfg["bash_allow"], sandboxed, exact, approved):
+            continue
+        prefix = approval_prefix(words)
+        if prefix is None:
+            return None
+        if shlex.join(prefix) not in out:
+            out.append(shlex.join(prefix))
+    return out
+
+
+def set_prefixes(board, prefixes: list[str], by: str) -> None:
+    from .board import write_json
+    with board.locked():
+        cfg = board.live_cfg()
+        have = cfg.setdefault("prefix_allow", [])
+        have.extend(p for p in prefixes if p not in have)
+        cfg["allow_off"] = [c for c in cfg.get("allow_off", []) if c not in prefixes]
+        write_json(board.dir / "team.json", cfg)
+        board.cfg = cfg
+        with open(board.dir / "run" / ALLOW_LOG, "a", encoding="utf-8", newline="\n") as f:
+            for p in prefixes:
+                f.write(json.dumps({"ts": time.time(), "command": p, "by": by, "on": True, "exact": False, "prefix": True}, ensure_ascii=False) + "\n")
+        board.bump()
+
+
 def widening(board, r: dict) -> dict | None:
     return _widen(board, r)[0]
 
@@ -368,6 +419,9 @@ def widen(board, w: dict, by: str) -> bool:
     try:
         if w["kind"] == "command":
             return set_allow(board, w["value"], by, exact=True) is None
+        if w["kind"] == "prefix":
+            set_prefixes(board, list(w["value"]), by)
+            return True
         if w["kind"] == "site":
             set_site(board, w["value"], by=by)
             return True

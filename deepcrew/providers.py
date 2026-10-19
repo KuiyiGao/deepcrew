@@ -221,11 +221,13 @@ def _user_tables() -> dict:
         raise ProviderError(f"{shown(user)} is not valid TOML: {e}") from None
 
 
-def load(name: str) -> dict:
+def load(name: str, ready: bool = False) -> dict:
     tables = {k: dict(v) for k, v in BUILTIN.items()}
     for key, table in _user_tables().items():
         if isinstance(table, dict):
             tables[key] = merged(tables.get(key, {}), table)
+    if ready and name not in tables and name in TEMPLATES:
+        tables[name] = tomllib.loads(TEMPLATES[name]).get(name, {})
     if name not in tables:
         ready = sorted(set(TEMPLATES) - set(tables))
         raise ProviderError(f"unknown provider {name!r}; known: {', '.join(sorted(tables))}" + (f"; ready entries: {', '.join(ready)}" if ready else "")
@@ -272,6 +274,14 @@ def add_template(name: str) -> bool:
 
 def merged(base: dict, extra: dict) -> dict:
     return {**base, **{k: merged(base[k], v) if isinstance(v, dict) and isinstance(base.get(k), dict) else v for k, v in extra.items()}}
+
+
+LABELS = {"deepseek": "DeepSeek", "zai": "Z.ai (GLM)", "minimax": "MiniMax", "zhipu": "Zhipu GLM (China)", "minimax-cn": "MiniMax (China)"}
+
+
+def offered() -> list[str]:
+    have = known()
+    return have + sorted(set(TEMPLATES) - set(have))
 
 
 def known() -> list[str]:

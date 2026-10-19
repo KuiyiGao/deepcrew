@@ -57,6 +57,57 @@ def runs_code(command: str) -> bool:
 
 
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
+RISKY_VARS = re.compile(r"(?:LD|DYLD)_[A-Za-z0-9_]*|PATH|PYTHONPATH|PYTHONSTARTUP|PYTHONHOME|NODE_OPTIONS|NODE_PATH|BASH_ENV|ENV|PERL5OPT|PERL5LIB"
+                        r"|RUBYOPT|RUBYLIB|GIT_[A-Za-z0-9_]*|IFS|PS4|PROMPT_COMMAND|SHELLOPTS|BASHOPTS")
+SUBCOMMANDED = frozenset({"npm", "pnpm", "yarn", "bun", "cargo", "go", "uv", "pip", "pip3", "pipx", "poetry", "pdm", "hatch", "conda", "mamba", "gem",
+                          "bundle", "composer", "make", "cmake", "gradle", "mvn", "dotnet", "swift", "docker", "podman", "kubectl", "helm", "brew",
+                          "gh", "git", "terraform", "deno", "jupyter"})
+INTERPRETERS = frozenset({"python", "python3", "pypy", "pypy3", "node", "deno", "bun", "ruby", "perl", "php", "lua", "Rscript", "julia",
+                          "sh", "bash", "zsh", "dash", "ksh", "ipython", "tsx", "ts-node"})
+NO_PREFIX = frozenset({"sudo", "su", "doas", "pkexec", "rm", "rmdir", "unlink", "shred", "srm", "trash", "kill", "pkill", "killall", "dd",
+                       "mkfs", "chown", "chgrp", "chmod", "env", "xargs", "find", "awk", "gawk", "sed", "nohup", "timeout", "watch", "time",
+                       "command", "exec", "script", "eval", "nice", "stdbuf", "caffeinate", "unbuffer", "osascript", "open", "tee", "mv", "cp"})
+GIT_ONE_BY_ONE = frozenset({"reset", "clean", "checkout", "restore", "rebase", "push", "stash", "branch", "switch", "rm", "filter-branch",
+                            "filter-repo", "gc", "prune", "update-ref", "reflog", "worktree", "submodule", "config", "remote", "tag"})
+SUBCOMMAND = re.compile(r"[a-z][a-z0-9:._-]*")
+
+
+def unassigned(words: list[str]) -> list[str] | None:
+    while words and ASSIGNMENT.fullmatch(words[0]):
+        if RISKY_VARS.fullmatch(words[0].split("=", 1)[0]):
+            return None
+        words = words[1:]
+    return words
+
+
+def approval_prefix(words: list[str]) -> list[str] | None:
+    words = unassigned(words)
+    if not words:
+        return None
+    first, args = words[0], words[1:]
+    name = program(first)
+    if name in NO_PREFIX:
+        return None
+    if name in INTERPRETERS or VERSIONED.fullmatch(name):
+        for i, arg in enumerate(args):
+            if arg == "-m" and i + 1 < len(args):
+                return [first, *args[: i + 2]]
+            if arg in ("-c", "-e", "-p", "-", "--eval", "--print", "-i"):
+                return None
+            if not arg.startswith("-"):
+                return [first, *args[: i + 1]]
+        return None
+    if name in SUBCOMMANDED:
+        lead = 0
+        while lead < len(args) and args[lead].startswith("-"):
+            lead += 2 if args[lead] in ("-C", "-c", "--git-dir", "--work-tree", "-f", "--file", "--directory") else 1
+        sub = args[lead] if lead < len(args) else None
+        if sub is None or not SUBCOMMAND.fullmatch(sub) or (name == "git" and sub in GIT_ONE_BY_ONE):
+            return None if name == "git" or sub is not None else [first]
+        if sub == "run" and lead + 1 < len(args) and SUBCOMMAND.fullmatch(args[lead + 1]):
+            return [first, *args[: lead + 2]]
+        return [first, *args[: lead + 1]]
+    return None if name in builtin_runs_code() or "/" in first else [first]
 UNQUOTED_BANNED = set("$`*?[]{}!()")
 DISCARD = re.compile(r">&[12](?=$|[\s|&;])|>>?[ \t]*/dev/null(?=$|[\s|&;])")
 HEREDOC = re.compile(r"<<(-?)[ \t]*(?:'([^'\n]+)'|\"([^\"\n$`\\]+)\")(?=$|[ \t\n|&;])")
@@ -168,13 +219,23 @@ def joined_parts(command: str) -> list[tuple[list[str], str]] | None:
     return found or None
 
 
-def allowlisted(command, allow: list[str], sandboxed: bool = False, exact=()) -> bool:
+def allowlisted(command, allow: list[str], sandboxed: bool = False, exact=(), approved=()) -> bool:
     if not isinstance(command, str) or not command.strip():
         return False
     entries, fixed = [e for e in (_words(a) for a in allow) if e], [e for e in (_words(a) for a in exact) if e]
+    granted = [e for e in (_words(a) for a in approved) if e]
     found = [words[1:] if words[0] == "time" and len(words) > 1 else words for words in parts(command) or []]
-    return bool(found) and all(words in fixed or (any(words[: len(e)] == e for e in entries) and (sandboxed or not runs_code(shlex.join(words))))
-                               for words in found)
+
+    def ok(words: list[str]) -> bool:
+        if words in fixed:
+            return True
+        bare = unassigned(words)
+        if not bare:
+            return any(words[: len(e)] == e for e in entries) and (sandboxed or not runs_code(shlex.join(words)))
+        def led(e: list[str]) -> bool:
+            return words[: len(e)] == e or bare[: len(e)] == e
+        return any(led(e) for e in granted) or (any(led(e) for e in entries) and (sandboxed or not runs_code(shlex.join(bare))))
+    return bool(found) and all(ok(words) for words in found)
 
 
 def allow_refusal(command: str, sandboxed: bool, exact: bool = False) -> str | None:

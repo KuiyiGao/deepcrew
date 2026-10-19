@@ -234,6 +234,9 @@ Or mix your own, as in `deepcrew config preset strongest crowd builder`.
 - **Memory.** Each working agent is one `claude` process, about 300 MB at start. They share your project folder, with no
   container or worktree of their own, and idle agents exit. About 10 fit in 8 GB, 20 in 16 GB, and the maximum of 32 in 32 GB.
 - **Rules.** Agents read your `CLAUDE.md`. Rules for this session only go in `deepcrew instructions "..."`.
+- **Reply language.** The crew works in English and writes to you in the language you pick: the sliders button at the top of
+  the Team Call or the Monitor, then **Replies in**, or `deepcrew lang "Simplified Chinese"`. English, Simplified and
+  Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, Italian and Russian are on offer.
 - **Other providers.** `deepcrew config set provider zai` moves the crew to Z.ai, and Zhipu GLM and MiniMax come ready
   too. `deepcrew config set fallback zai,minimax` names backups that take over when the provider in use runs out of
   balance or stays overloaded. Any other Anthropic-compatible endpoint works with an entry of your own in

@@ -1102,3 +1102,27 @@ def test_the_real_server_ends_with_its_input_after_answering_everything(waiting_
         assert proc.stderr.read() == ""
     finally:
         proc.kill()
+
+
+def test_the_mcp_candidates_are_what_adding_finds_first_once_a_name_and_say_which_are_given(project, tmp_path):
+    key = extensions.project_key(project)
+    put(tmp_path / ".claude.json", json.dumps({"mcpServers": {"s": server("user"), "u": server("user-extra"), "deepcrew": server(), "a b": server(), "n": "text"},
+                                              "projects": {key: {"mcpServers": {"l": server("local", "--token", TOKEN)}}}}))
+    servers_file(project / ".mcp.json", s=server("project"))
+    toolkit.add_mcp(project, "u")
+    got = toolkit.mcp_candidates(project)
+    assert [(c["name"], c["given"]) for c in got] == [("l", False), ("s", False), ("u", True)]
+    assert (got[1]["where"], got[1]["command"]) == ("the project's .mcp.json", "tool project")
+    assert "for this project" in got[0]["where"] and TOKEN not in json.dumps(got) and toolkit.mcp_names(project) == ["u"]
+
+
+def test_the_skill_candidates_are_the_folders_with_a_skill_md_the_projects_first(project, tmp_path):
+    skill_folder(tmp_path / ".claude" / "skills" / "greet", "from the user")
+    skill_folder(tmp_path / ".claude" / "skills" / "wave", "Waves.")
+    skill_folder(project / ".claude" / "skills" / "greet", "from the project")
+    skill_folder(project / ".claude" / "skills" / "deepcrew", "a name adding refuses")
+    (project / ".claude" / "skills" / "empty").mkdir()
+    toolkit.add_skill(project, "wave")
+    got = toolkit.skill_candidates(project)
+    assert [(c["name"], c["description"], c["given"]) for c in got] == [("greet", "from the project", False), ("wave", "Waves.", True)]
+    assert [c["where"] for c in got] == ["the project's .claude/skills/greet", "~/.claude/skills/wave"]

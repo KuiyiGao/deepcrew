@@ -860,3 +860,30 @@ def test_a_board_holding_still_reads_once_per_thread_hands_out_copies_and_the_ou
             assert [(m["name"], m["region"]) for m in board.members()] == [("alpha", ["src/"])]
     assert seen == [["alpha", "beta"]]
     assert [m["name"] for m in board.members()] == ["alpha", "beta"]
+
+
+def ask(board, member="alpha", now=None):
+    with board.locked():
+        until = board.user_window(now)
+        return board.request("questions", member, {"question": "Which?", "answer": None, "options": [], **({"user_until": until} if until else {})})
+
+
+def test_a_question_waits_for_the_user_only_while_the_page_is_watched_two_at_a_time_and_not_too_often(board):
+    from deepcrew.board import PAGE_SEEN, PAGE_SEEN_S, USER_FIRST_S, USER_GAP_S
+    assert "user_until" not in ask(board)
+    seen = board.dir / "run" / PAGE_SEEN
+    seen.parent.mkdir(parents=True, exist_ok=True)
+    seen.touch()
+    now = seen.stat().st_mtime + 1
+
+    def at(t):
+        os.utime(seen, (t - 1, t - 1))
+        return ask(board, now=t)
+    first = at(now)
+    assert first["user_until"] == now + USER_FIRST_S and board.for_leader("questions", now) == [q for q in board.pending("questions") if "user_until" not in q]
+    assert "user_until" not in at(now + 1)
+    second = at(now + USER_GAP_S)
+    assert second["user_until"] and "user_until" not in at(now + 2 * USER_GAP_S)
+    assert first["id"] in {q["id"] for q in board.for_leader("questions", now + USER_FIRST_S + 1)}
+    assert "user_until" in at(now + USER_FIRST_S + 1)
+    assert not board.page_watched(now + USER_FIRST_S + 1 + PAGE_SEEN_S)

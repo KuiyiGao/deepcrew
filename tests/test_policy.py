@@ -47,7 +47,8 @@ def test_relpath_resolves_symlinks_and_is_none_outside_the_project(project, tmp_
 def test_allowlisted_takes_one_simple_command_that_starts_with_an_entry():
     for ok in ("du -sh", "du -sh -s src/a.py", "  ls  ", 'ls "a file"', "wc -l -q tests/"):
         assert policy.allowlisted(ok, ALLOW), ok
-    for no in ("", "  ", "du", "du -shx", "dux -sh", "du -a", "/usr/bin/du -sh", "FOO=1 du -sh", "du -sh; rm x", "du -sh && rm x",
+    assert policy.allowlisted("FOO=1 du -sh", ALLOW) and policy.allowlisted("A=1 B=x ls src", ALLOW)
+    for no in ("", "  ", "du", "du -shx", "dux -sh", "du -a", "/usr/bin/du -sh", "PATH=/tmp du -sh", "LD_PRELOAD=x.so ls", "du -sh; rm x", "du -sh && rm x",
                "du -sh | cat", "du -sh `id`", "du -sh $(id)", "du -sh $HOME", "du -sh > out", "du -sh\nrm x", "du -sh *",
                'du -sh "open', None, 5):
         assert not policy.allowlisted(no, ALLOW), no
@@ -170,31 +171,32 @@ def test_an_expired_request_denies_that_call_when_claude_code_asks_again(crew, c
     assert first["behavior"] == again["behavior"] == "deny" and len(list((crew.dir / "perms").glob("P*.json"))) == 1
 
 
-def test_answer_permission_always_adds_one_simple_bash_command_word_for_word(crew):
-    def ask(tool, tool_input):
-        return crew.request("perms", "alpha", {"tool": tool, "input": tool_input, "tool_use_id": None, "always": False})["id"]
+def test_an_approval_lets_its_kind_of_command_through_and_only_the_command_itself_where_nothing_wider_is_safe(crew):
+    without_sandbox(crew)
 
-    def allowed():
-        cfg = read_json(crew.dir / "team.json")
-        return cfg.get("exact_allow", []), cfg["bash_allow"], cfg["approved_allow"]
-
-    prefixes = allowed()[1:]
-    rid = ask("Bash", {"command": "  wc -c  "})
-    r = policy.answer_permission(crew, rid, True, always=True)
-    assert r["always"] is True and r["state"] == "allowed" and allowed()[0] == ["wc -c"] and crew.cfg["exact_allow"] == ["wc -c"]
-    assert read_json(crew.dir / "perms" / f"{rid}.json")["always"] is True
-    assert allowed()[1:] == prefixes
-    assert decide(crew, "Bash", command="wc -c")["behavior"] == "allow"
-    assert decide(crew, "Bash", command="wc -c -j4") is None and decide(crew, "Bash", command="wc -c a.py") is None
-    before = allowed()
-    for tool, tool_input, allow in (("Bash", {"command": "wc a && wc b"}, True), ("Bash", {"command": "make c"}, False), ("Bash", {"command": " "}, True),
-                                    ("Bash", {"command": "echo it's"}, True), ("Edit", {"file_path": "src/a.py"}, True)):
-        refused = ask(tool, tool_input)
-        assert policy.answer_permission(crew, refused, allow, always=True)["always"] is False
-        stored = read_json(crew.dir / "perms" / f"{refused}.json")
-        assert (stored["always"], stored["widened"]) == (False, None)
-    assert policy.answer_permission(crew, ask("Bash", {"command": "wc -c"}), True, always=True)["always"] is True
-    assert allowed() == before
+    def always(command):
+        r = policy.answer_permission(crew, ask(crew, command), True, always=True)
+        return r["always"], (r["widened"] or {}).get("value")
+    cfg = lambda: read_json(crew.dir / "team.json")
+    before = {k: cfg()[k] for k in ("bash_allow", "approved_allow")}
+    assert always("  wc -c  ") == (True, ["wc"]) and decide(crew, "Bash", command="wc -l src/a.py")["behavior"] == "allow"
+    assert always("npm install chart.js") == (True, ["npm install"]) and decide(crew, "Bash", command="npm install three")["behavior"] == "allow"
+    assert decide(crew, "Bash", command="npm run build") is None
+    assert always("python3 -m pytest tests/a.py") == (True, ["python3 -m pytest"]) and decide(crew, "Bash", command="python3 -m pytest -k x")["behavior"] == "allow"
+    assert decide(crew, "Bash", command="python3 x.py") is None
+    assert always("git add -A && git commit -m one") == (True, ["git add", "git commit"])
+    assert decide(crew, "Bash", command="git commit -m two")["behavior"] == "allow"
+    for command in ("rm build/x.o", "git reset --hard", "python3 -c pass"):
+        assert always(command) == (True, command)
+    assert cfg()["exact_allow"] == ["rm build/x.o", "git reset --hard", "python3 -c pass"]
+    assert decide(crew, "Bash", command="rm build/y.o") is None and decide(crew, "Bash", command="git reset --hard HEAD~1") is None
+    assert cfg()["prefix_allow"] == ["wc", "npm install", "python3 -m pytest", "git add", "git commit"]
+    assert {k: cfg()[k] for k in ("bash_allow", "approved_allow")} == before
+    for command in ("wc a; rm b", "echo $HOME", " ", "echo it's"):
+        r = policy.answer_permission(crew, ask(crew, command), True, always=True)
+        assert (r["always"], r["widened"]) == (False, None), command
+    r = policy.answer_permission(crew, ask(crew, "", tool="Edit", file_path="src/a.py"), True, always=True)
+    assert (r["always"], r["widened"]) == (False, None)
     with pytest.raises(ValueError):
         policy.answer_permission(crew, "P12345678", True)
 
@@ -209,10 +211,11 @@ def test_commands_that_run_code_join_by_prefix_only_under_the_sandbox_and_word_f
 
     def always(cmd):
         rid = crew.request("perms", "alpha", {"tool": "Bash", "input": {"command": cmd}, "tool_use_id": None, "always": False})["id"]
-        return policy.answer_permission(crew, rid, True, always=True)["always"]
-    assert crew.cfg["sandbox"] and always("make test") is True and "make test" in read_json(crew.dir / "team.json")["exact_allow"]
+        r = policy.answer_permission(crew, rid, True, always=True)
+        return r["always"], r["widened"]
+    assert crew.cfg["sandbox"] and always("make test") == (False, None)
     without_sandbox(crew)
-    assert always("npm test") is True and "npm test" in read_json(crew.dir / "team.json")["exact_allow"]
+    assert always("npm test") == (True, {"kind": "prefix", "value": ["npm test"], "text": "`npm test` commands run without asking from now on"})
 
 
 @pytest.mark.parametrize("command, ok", [
@@ -290,36 +293,38 @@ def without_sandbox(board):
     board.cfg = cfg
 
 
-def test_a_user_allow_of_one_simple_command_allowlists_it_and_the_log_says_who(crew):
+def test_a_user_allow_lets_its_kind_of_command_through_and_the_log_says_who(crew):
+    without_sandbox(crew)
     write_json(crew.dir / "run" / "settings.json", {})
     version = crew.version()
     r = policy.answer_permission(crew, ask(crew, "  wc -c  "), True, by="user")
     assert crew.version() != version
     cfg = read_json(crew.dir / "team.json")
-    assert (r["state"], r["by"], r["always"]) == ("allowed", "user", True) and cfg["exact_allow"] == ["wc -c"]
-    assert r["widened"] == {"kind": "command", "value": "wc -c", "text": "`wc -c` runs without asking from now on"}
-    assert "wc -c" not in cfg["bash_allow"] and "wc -c" not in cfg["approved_allow"]
-    assert crew.cfg["exact_allow"] == cfg["exact_allow"] and decide(crew, "Bash", command="wc -c")["behavior"] == "allow"
-    assert decide(crew, "Bash", command="wc -c -j4") is None
-    assert allow_log(crew) == [("wc -c", "user", True)] and [row["exact"] for row in allow_rows(crew)] == [True]
+    assert (r["state"], r["by"], r["always"]) == ("allowed", "user", True) and cfg["prefix_allow"] == ["wc"]
+    assert r["widened"] == {"kind": "prefix", "value": ["wc"], "text": "`wc` commands run without asking from now on"}
+    assert "wc" not in cfg["bash_allow"] and "wc" not in cfg["approved_allow"] and cfg.get("exact_allow", []) == []
+    assert crew.cfg["prefix_allow"] == ["wc"] and decide(crew, "Bash", command="wc -c -j4")["behavior"] == "allow"
+    assert decide(crew, "Bash", command="cat a.py") is None
+    assert allow_log(crew) == [("wc", "user", True)] and [(row["exact"], row["prefix"]) for row in allow_rows(crew)] == [(False, True)]
     assert read_json(crew.dir / "run" / "settings.json") == {}
 
 
-def test_a_leader_approval_allowlists_a_command_only_with_always(crew):
+def test_a_leader_approval_widens_only_with_always(crew):
+    without_sandbox(crew)
     r = policy.answer_permission(crew, ask(crew, "wc -m"), True)
     cfg = read_json(crew.dir / "team.json")
-    assert (r["state"], r["by"], r["always"]) == ("allowed", "leader", False) and "wc -m" not in [*cfg["bash_allow"], *cfg.get("exact_allow", [])]
+    assert (r["state"], r["by"], r["always"]) == ("allowed", "leader", False) and cfg.get("prefix_allow", []) == [] and cfg.get("exact_allow", []) == []
     assert allow_log(crew) == [] and decide(crew, "Bash", command="wc -m") is None
     r = policy.answer_permission(crew, ask(crew, "wc -m"), True, always=True)
-    assert r["always"] is True and allow_log(crew) == [("wc -m", "leader", True)] and decide(crew, "Bash", command="wc -m")["behavior"] == "allow"
-    assert read_json(crew.dir / "team.json")["exact_allow"] == ["wc -m"] and decide(crew, "Bash", command="wc -m x") is None
+    assert r["always"] is True and allow_log(crew) == [("wc", "leader", True)] and decide(crew, "Bash", command="wc -m x")["behavior"] == "allow"
 
 
 def test_an_answer_adds_to_the_lists_only_what_widening_names(crew):
-    lists = lambda: {k: read_json(crew.dir / "team.json").get(k, []) for k in ("bash_allow", "approved_allow", "exact_allow")}
+    lists = lambda: {k: read_json(crew.dir / "team.json").get(k, []) for k in ("bash_allow", "approved_allow", "exact_allow", "prefix_allow")}
+    without_sandbox(crew)
     before = lists()
-    for by, allow, command in (("user", False, "wc -c"), ("user", True, "wc a && wc b"), ("user", True, "wc a | wc"), ("user", True, "wc a; rm b"), ("user", True, "echo $HOME"),
-                               ("user", True, " "), ("user", True, "echo it's")):
+    for by, allow, command in (("user", False, "wc -c"), ("user", True, "wc a; rm b"), ("user", True, "echo $HOME"), ("user", True, " "),
+                               ("user", True, "echo it's")):
         r = policy.answer_permission(crew, ask(crew, command), allow, by=by)
         assert r["always"] is False and r["state"] == ("allowed" if allow else "denied"), command
     r = policy.answer_permission(crew, ask(crew, "", tool="Edit", file_path="src/a.py"), True, by="user")
@@ -327,27 +332,28 @@ def test_an_answer_adds_to_the_lists_only_what_widening_names(crew):
     assert lists() == before and allow_log(crew) == [] and crew.sites() == []
 
 
-def test_a_user_allow_of_a_command_that_runs_code_lists_it_word_for_word_without_the_sandbox_too(crew):
+def test_a_user_allow_of_a_command_that_runs_code_lets_its_kind_through_without_the_sandbox_too(crew):
     without_sandbox(crew)
     r = policy.answer_permission(crew, ask(crew, "make test"), True, by="user")
     cfg = read_json(crew.dir / "team.json")
-    assert (r["state"], r["always"]) == ("allowed", True) and "make test" in cfg["exact_allow"] and "make test" not in cfg["bash_allow"]
-    assert decide(crew, "Bash", command="make test")["behavior"] == "allow"
-    assert decide(crew, "Bash", command="make test -j8") is None
+    assert (r["state"], r["always"]) == ("allowed", True) and cfg["prefix_allow"] == ["make test"] and "make test" not in cfg["bash_allow"]
+    assert decide(crew, "Bash", command="make test -j8")["behavior"] == "allow" and decide(crew, "Bash", command="make deploy") is None
     assert policy.set_allow(crew, "make", "leader") == "'make' could run code and the sandbox is off, so it is approved call by call"
 
 
-def test_a_user_allow_puts_a_removed_command_back_word_for_word(crew):
+def test_a_user_allow_puts_a_switched_off_kind_of_command_back(crew):
+    without_sandbox(crew)
     cfg = read_json(crew.dir / "team.json")
     write_json(crew.dir / "team.json", {**cfg, "allow_scope": ["du -sh", "wc -l"]})
     assert policy.set_allow(crew, "wc -l", "leader", on=False) is None and "wc -l" not in read_json(crew.dir / "team.json")["bash_allow"]
     assert read_json(crew.dir / "team.json")["allow_off"] == ["wc -l"] and decide(crew, "Bash", command="wc -l") is None
     policy.answer_permission(crew, ask(crew, "wc -l"), True, by="user")
     cfg = read_json(crew.dir / "team.json")
-    assert cfg["exact_allow"] == ["wc -l"] and "wc -l" not in cfg["bash_allow"] and cfg["allow_off"] == []
-    assert allow_log(crew) == [("wc -l", "leader", False), ("wc -l", "user", True)] and [row["exact"] for row in allow_rows(crew)] == [False, True]
-    assert decide(crew, "Bash", command="wc -l")["behavior"] == "allow" and decide(crew, "Bash", command="wc -l a.py") is None
-    assert policy.set_allow(crew, "wc -l", "leader", on=False) is None and read_json(crew.dir / "team.json")["exact_allow"] == []
+    assert cfg["prefix_allow"] == ["wc"] and "wc -l" not in cfg["bash_allow"] and cfg["allow_off"] == ["wc -l"]
+    assert allow_log(crew) == [("wc -l", "leader", False), ("wc", "user", True)]
+    assert decide(crew, "Bash", command="wc -l")["behavior"] == "allow" and decide(crew, "Bash", command="wc -l a.py")["behavior"] == "allow"
+    assert policy.set_allow(crew, "wc", "leader", on=False) is None and read_json(crew.dir / "team.json")["prefix_allow"] == []
+    assert decide(crew, "Bash", command="wc -c") is None
 
 
 def test_a_denied_member_is_told_who_denied_the_call(crew, clock):
@@ -573,7 +579,7 @@ def test_widening_names_what_an_always_answer_would_add(crew):
     def widening(tool, **tool_input):
         return policy.widening(crew, {"tool": tool, "member": "alpha", "input": tool_input})
 
-    assert widening("Bash", command="  npm run build ") == {"kind": "command", "value": "npm run build", "text": "`npm run build` runs without asking from now on"}
+    assert widening("Bash", command="  npm run build ") is None
     assert widening("WebFetch", url="https://Docs.Python.org/3/") == {
         "kind": "site", "value": "docs.python.org",
         "text": "members reach docs.python.org without asking"}
@@ -586,19 +592,21 @@ def test_widening_names_what_an_always_answer_would_add(crew):
                              ("WebSearch", {"query": "x"}), ("Agent", {}), (None, {})):
         assert policy.widening(crew, {"tool": tool, "member": "alpha", "input": tool_input}) is None, (tool, tool_input)
     assert policy.widening(crew, {"tool": "Bash", "member": "alpha"}) is None and policy.widening(crew, {}) is None
+    without_sandbox(crew)
+    assert widening("Bash", command="  npm run build ") == {"kind": "prefix", "value": ["npm run build"], "text": "`npm run build` commands run without asking from now on"}
 
 
 @pytest.mark.sandbox
-def test_widening_leaves_out_what_is_listed_already_and_lists_a_command_word_for_word_with_or_without_the_sandbox(crew):
+def test_widening_leaves_out_what_is_listed_or_runs_without_asking_already_and_lets_a_kind_of_command_through(crew):
     policy.set_site(crew, "*.python.org")
     policy.set_tool(crew, "mcp__github__create_issue", "leader")
     assert policy.widening(crew, request_of(crew, "WebFetch", url="https://docs.python.org/3/")) is None
     assert policy.widening(crew, request_of(crew, "WebFetch", url="https://python.org/"))["value"] == "python.org"
     assert policy.widening(crew, request_of(crew, "mcp__github__create_issue")) is None
-    assert policy.widening(crew, request_of(crew, "Bash", command="make test"))["value"] == "make test"
+    assert policy.widening(crew, request_of(crew, "Bash", command="make test")) is None
     without_sandbox(crew)
-    assert policy.widening(crew, request_of(crew, "Bash", command="make test"))["value"] == "make test"
-    assert policy.widening(crew, request_of(crew, "Bash", command="wc -c"))["value"] == "wc -c"
+    assert policy.widening(crew, request_of(crew, "Bash", command="make test"))["value"] == ["make test"]
+    assert policy.widening(crew, request_of(crew, "Bash", command="wc -c"))["value"] == ["wc"]
 
 
 def test_a_command_that_names_a_place_outside_the_project_has_nothing_to_widen_since_it_would_still_ask(crew):
@@ -612,16 +620,19 @@ def test_a_command_that_names_a_place_outside_the_project_has_nothing_to_widen_s
     assert policy.widening_refusal(crew, linkable).endswith("so it is approved call by call, unless the folder is linked (--link)")
 
 
+@pytest.mark.sandbox
 def test_widening_says_why_it_adds_nothing(crew):
     def why(tool, **tool_input):
         return policy.widening_refusal(crew, {"tool": tool, "member": "alpha", "input": tool_input})
 
-    assert why("Bash", command="wc a && wc b") == "'wc a && wc b' is not one simple command"
+    assert why("Bash", command="wc a && wc b") == "'wc a && wc b' runs without asking already"
     assert why("WebFetch", url="https://127.0.0.1/x") == "127.0.0.1 is an address, not a domain name, so it is approved call by call"
     assert why("WebFetch", url="gopher://x") == "the address is not a plain http or https URL with a host name"
     assert why("mcp__deepcrew__message") == "'mcp__deepcrew__message' is one of deepcrew's own tools, which members use without asking already"
     assert why("Edit", file_path="src/a.py") == "Edit calls are answered one by one"
-    assert why("Bash", command="wc -c") == "" and why("WebFetch", url="https://docs.python.org/") == ""
+    assert why("WebFetch", url="https://docs.python.org/") == ""
+    without_sandbox(crew)
+    assert why("Bash", command="wc -c") == "" and why("Bash", command="wc a; rm b") == "'wc a; rm b' is not one simple command"
     policy.set_site(crew, "docs.python.org")
     policy.set_tool(crew, "mcp__srv__search", "leader")
     assert why("WebFetch", url="https://docs.python.org/3") == "docs.python.org is among the team's sites already"
@@ -730,3 +741,39 @@ def test_the_null_device_and_the_standard_streams_are_no_place_outside(make_boar
     assert policy.outside(board, "curl -sS -o /dev/null https://example.com") == []
     assert policy.outside(board, "pytest --junitxml=/dev/stdout tests") == []
     assert policy.outside(board, "cat /dev/zero") == ["/dev/zero"]
+
+
+@pytest.mark.sandbox
+def test_with_the_sandbox_a_members_commands_run_at_once_whatever_their_shape(crew):
+    for command in ("HF_HUB_OFFLINE=1 LAB_DEVICE=cpu agent-lab/.venv/bin/python agent-lab/lesson.py 2>&1 | tail -3",
+                    "agent-lab/.venv/bin/python - <<'EOF' 2>&1 | tail -40\nimport torch\nprint(torch.__version__)\nEOF",
+                    'node /tmp/verify3d.js 2>&1 | grep -E "NaN|FAIL" && echo "SYNTAX OK"',
+                    'for f in src/*.py; do python3 "$f" > /dev/null; done; echo "EXIT=$?"',
+                    "mkdir -p src/out && cat src/a.py | head -5", "curl -sS https://pypi.org/simple/numpy/ | head", "make -C src check 2>&1 | tail -16",
+                    "git status && git diff --stat"):
+        assert decide(crew, "Bash", command=command) == {"behavior": "allow", "updatedInput": {"command": command}}, command
+
+
+@pytest.mark.sandbox
+def test_with_the_sandbox_what_it_cannot_stop_still_asks_and_an_approved_kind_runs_after(crew):
+    for command in ("git reset --hard", "git push origin main", "cd src && git checkout -- .", "sudo make install", "rm -rf docs/", "kill 4242",
+                    "npm publish", "find . -delete", "git add -A && git commit -m one"):
+        assert decide(crew, "Bash", command=command) is None, command
+    own = f"rm -rf {crew.root / 'src' / 'build'}"
+    assert decide(crew, "Bash", command=own) == {"behavior": "allow", "updatedInput": {"command": own}}
+    assert decide(crew, "Bash", command="rm -rf src/build") is None
+    r = policy.answer_permission(crew, ask(crew, "git add -A && git commit -m one"), True, always=True)
+    assert r["widened"]["value"] == ["git add", "git commit"] and decide(crew, "Bash", command="git commit -m two")["behavior"] == "allow"
+    assert decide(crew, "Bash", command="git push") is None
+
+
+def test_an_approval_prefix_is_the_program_and_what_says_what_it_does():
+    prefix = lambda command: policy.approval_prefix(policy.parts(command)[0])
+    for command, want in (("npm install chart.js --save", ["npm", "install"]), ("npm run build -- --watch", ["npm", "run", "build"]),
+                          ("git -C src commit -m x", ["git", "-C", "src", "commit"]), ("cargo test --release", ["cargo", "test"]),
+                          ("python3 -m pytest tests/a.py", ["python3", "-m", "pytest"]), (".venv/bin/python scripts/train.py --epochs 1", [".venv/bin/python", "scripts/train.py"]),
+                          ("HF_HUB_OFFLINE=1 node build.js", ["node", "build.js"]), ("wc -l src/a.py", ["wc"]), ("make", ["make"]), ("uv run pytest -q", ["uv", "run", "pytest"])):
+        assert prefix(command) == want, command
+    for command in ("rm -rf build", "git reset --hard", "git push", "python3 -c pass", "node -e 1", "bash", "sudo ls", "env ls", "xargs rm", "./run.sh",
+                    "PATH=/tmp ls", "find . -name x"):
+        assert prefix(command) is None, command

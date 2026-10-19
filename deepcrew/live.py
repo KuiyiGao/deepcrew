@@ -13,8 +13,8 @@ from datetime import datetime
 from pathlib import Path
 
 from . import member as _member
-from . import policy, providers, route
-from .board import LANGS, Board, read_json, reply_lang, team_path
+from . import policy, providers, route, toolkit
+from .board import LANGS, PAGE_SEEN, Board, read_json, reply_lang, team_path
 from .member import CLAUDE_PRICES, DEFAULT_COMPARE, claude_equivalent, claude_tokens
 from .ui import Extension, Refused
 
@@ -23,6 +23,7 @@ STREAM_POLL_S, JOIN_S = 1.0, 5
 USAGE_TTL_S = 2.0
 PLAN_S = 5.0
 SHOT_S = 3.0
+SEEN_EVERY_S = 5.0
 SHOT_BYTES = 3 << 20
 SHOT_KINDS = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 PENDING_BLOCK_S = 30.0
@@ -30,6 +31,7 @@ STALL_S = 180.0
 MAIL_WAIT_S = 60.0
 BUSY_N = 30
 FIELD_CHARS, SUMMARY_CHARS, DESCRIPTION_CHARS = 120, 600, 2000
+QUESTION_CHARS = 4000
 SUMMARIES, DECISIONS = 10, 12
 TITLE_CHARS, REASON_CHARS, BRIEF_CHARS, ROLE_CHARS = 64, 90, 90, 60
 COPY = "(copy) "
@@ -252,6 +254,60 @@ class _TaskClock:
         return scan
 
 
+class ToolUse:
+    def __init__(self, board: Board):
+        self.board, self.seen, self.ids = board, {}, set()
+        self.use: dict[str, dict] = {"mcp": {}, "skills": {}}
+
+    def _count(self, kind: str, name: str, member: str, ts: float, tool: str | None = None) -> None:
+        u = self.use[kind].setdefault(name, {"calls": 0, "by": {}, "last": 0.0, **({"tools": {}} if kind == "mcp" else {})})
+        u["calls"] += 1
+        u["by"][member] = u["by"].get(member, 0) + 1
+        u["last"] = max(u["last"], ts)
+        if tool:
+            u["tools"][tool] = u["tools"].get(tool, 0) + 1
+
+    def _feed(self, member: str, line: bytes, ts: float) -> None:
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            return
+        msg = ev.get("message") if isinstance(ev, dict) and ev.get("type") == "assistant" else None
+        for b in msg.get("content") if isinstance(msg, dict) and isinstance(msg.get("content"), list) else []:
+            if not (isinstance(b, dict) and b.get("type") == "tool_use" and isinstance(b.get("name"), str)) or b.get("id") in self.ids:
+                continue
+            if b.get("id"):
+                self.ids.add(b["id"])
+            name, ti = b["name"], b.get("input") if isinstance(b.get("input"), dict) else {}
+            when = _epoch(ev.get("timestamp")) or ts
+            if name.startswith("mcp__") and not name.startswith(policy.OWN_TOOLS):
+                server, _, tool = name[5:].partition("__")
+                self._count("mcp", server, member, when, tool or None)
+            elif name == "Skill" and isinstance(skill := ti.get("skill") or ti.get("command"), str) and skill.strip():
+                self._count("skills", skill.strip().lstrip("/").split()[0], member, when)
+
+    def __call__(self, names) -> dict:
+        for name in names:
+            path = self.board.dir / "logs" / f"{name}.ndjson"
+            pos, tail = self.seen.get(name, (0, b""))
+            try:
+                st = path.stat()
+                if st.st_size < pos:
+                    pos, tail = 0, b""
+                if st.st_size == pos:
+                    continue
+                with open(path, "rb") as f:
+                    f.seek(pos)
+                    chunk = f.read()
+            except OSError:
+                continue
+            *lines, tail = (tail + chunk).split(b"\n")
+            for line in lines:
+                self._feed(name, line, st.st_mtime)
+            self.seen[name] = (pos + len(chunk), tail)
+        return json.loads(json.dumps(self.use))
+
+
 class _Notes:
     def __init__(self, board: Board):
         self.board, self.key, self.value = board, None, ([], [])
@@ -309,6 +365,7 @@ class Observer:
         self.board, self._json, self._edits, self._pos, self._tail, self._errors = board, {}, [], 0, b"", (None, {})
         self._mail: dict[str, dict] = {}
         self._shots, self._shots_at = {}, 0.0
+        self._tools = ToolUse(board)
 
     def _read(self, path: Path):
         try:
@@ -386,10 +443,13 @@ class Observer:
                                          "text": _short(r.get("question"), FIELD_CHARS), "chars": len(str(r.get("question") or "")),
                                          "gist": _short(r.get("gist"), GIST_CHARS) if r.get("gist") else gist(r.get("question"), question=True),
                                          "answer_chars": len(str(r.get("answer") or "")), "by": r.get("by"),
-                                         "answer": _short(r.get("answer"), FIELD_CHARS), "options": [_short(o, FIELD_CHARS) for o in r.get("options") or []]}
+                                         "answer": _short(r.get("answer"), FIELD_CHARS), "options": [_short(o, FIELD_CHARS) for o in r.get("options") or []],
+                                         "user_until": r.get("user_until"), "task": r.get("task"),
+                                         "full": _short(r.get("question"), QUESTION_CHARS) if kind == "question" else None}
         return {"ts": time.time(), "project": str(b.root), "shared_dir": str(b.shared_dir), "tasks": tasks, "records": records,
                 "members": {m["name"]: m["state"] for m in records}, "mail": mail, "edits": list(self._new_edits()), "notes": notes,
-                "requests": requests, "errors": self._member_errors(), "shots": self._newest_pictures(records)}
+                "requests": requests, "errors": self._member_errors(), "shots": self._newest_pictures(records),
+                "tools": self._tools([m["name"] for m in records])}
 
     def _mail_now(self) -> dict:
         mail, known, seen = {}, self._mail, set()
@@ -470,7 +530,9 @@ def _pending(obs: dict, now: float, limits: dict) -> dict:
         if r["kind"] == "perm":
             perms.append({"id": rid, "member": r["member"], "tool": r["tool"], "fields": r["fields"], "age_s": age})
         else:
-            questions.append({"id": rid, "member": r["member"], "text": r["text"], "age_s": age, "options": r.get("options") or []})
+            questions.append({"id": rid, "member": r["member"], "text": r.get("full") or r["text"], "age_s": age, "options": r.get("options") or [],
+                              "gist": r.get("gist"),
+                              "task": r.get("task"), "user_until": r["user_until"] if (r.get("user_until") or 0) > now else None})
     mail = [{"id": key, "from": m["from"], "kind": m["kind"], "chars": m["chars"], "age_s": round(max(0.0, now - m["ts"]), 1)}
             for key, m in obs["mail"].items() if not m["read"] and key.split("/", 1)[0] == "leader"]
     return {k: sorted(v, key=lambda x: -x["age_s"]) for k, v in (("perms", perms), ("questions", questions), ("leader_mail", mail))}
@@ -611,8 +673,10 @@ def snapshot(board: Board, usage_of=None, obs: dict | None = None, clock=None, n
     paid = spent() if spent else _member.spent(board)
     snap = assemble(_base(board), _task_list(obs["tasks"]), members, pending, now, routed["proposals"], routed["blocked"], len(obs["mail"]), paid)
     cap = board.budget()
+    tools = obs.get("tools") or {"mcp": {}, "skills": {}}
     return {**snap, "summaries": summaries, "decisions": decisions, "capacity": routed["capacity"], "feed": (feed or _feed)(obs),
-            "budget": {"usd": cap["usd"] if cap else None, "spent": paid}}
+            "budget": {"usd": cap["usd"] if cap else None, "spent": paid}, "load": routed.get("load"),
+            "tools": {**tools, "given": {"mcp": toolkit.mcp_names(board.root), "skills": toolkit.skill_names(board.root)}}}
 
 
 def _edit_event(e: dict, shared: str, root: str) -> tuple[str, str, str]:
@@ -676,11 +740,22 @@ def events(prev: dict, cur: dict) -> list[dict]:
         if before is None or before["mtime"] != n["mtime"]:
             add("note", _node(n["by"]), "folder", f"{n['by']} {'wrote' if before is None else 'updated'} {fname}", {"file": fname}, by=n["by"], name=fname)
 
+    for kind, what in (("mcp", "MCP server"), ("skills", "skill")):
+        for name, u in (cur.get("tools") or {}).get(kind, {}).items():
+            before = ((prev.get("tools") or {}).get(kind) or {}).get(name) or {"by": {}, "tools": {}}
+            for who, n in u["by"].items():
+                if n > before["by"].get(who, 0):
+                    tool = next((t for t, k in u.get("tools", {}).items() if k > before.get("tools", {}).get(t, 0)), None)
+                    label = f"{who} used {what} {name}" + (f": {tool}" if tool else "")
+                    add("tool", _node(who), "tools", label, {"kind": kind, "name": name, "calls": u["calls"]},
+                        member=who, tool_kind=kind, name=name, tool=tool, calls=n - before["by"].get(who, 0))
+
     for rid, r in cur["requests"].items():
         p = prev["requests"].get(rid)
         if p is None:
             add(r["kind"], _node(r["member"]), "leader", f"{r['member']}: {r['brief']}", _request_event_fields(r, False),
-                member=r["member"], state="pending", id=rid, text=r["text"], brief=r["brief"], gist=r["gist"])
+                member=r["member"], state="pending", id=rid, text=r["text"], brief=r["brief"], gist=r["gist"], user=bool(r.get("user_until")),
+                options=r.get("options") or [], task=r.get("task"))
         if (p is None or p["state"] == "pending") and r["state"] != "pending":
             add(r["kind"], _answerer(r), _node(r["member"]), f"{r['state']}: {r['brief']}", _request_event_fields(r, True),
                 member=r["member"], state=r["state"], id=rid, brief=r["brief"], by=r.get("by"), answer=r.get("answer"))
@@ -709,7 +784,8 @@ def _feed(obs: dict) -> list[dict]:
         if r["kind"] == "perm" and r["state"] != "pending" and r.get("by") != "user":
             continue
         text = r["text"] if r["kind"] == "question" else r["brief"]
-        out.append({"ts": r["ts"], "kind": r["kind"], "from": r["member"], "to": "leader", "text": text, "gist": r["gist"] if r["kind"] == "question" else text,
+        to = "user" if r.get("user_until") else "leader"
+        out.append({"ts": r["ts"], "kind": r["kind"], "from": r["member"], "to": to, "text": text, "gist": r["gist"] if r["kind"] == "question" else text,
                     "id": rid})
         if r["state"] != "pending":
             text = r.get("answer") or r["brief"]
@@ -741,6 +817,7 @@ class Hub:
         self.subs, self.lock, self.work, self.stop = set(), threading.Lock(), threading.Lock(), threading.Event()
         self.prev, self.latest, self.latest_key = None, {"team": None}, ""
         self.cfg_mtime, self.env_mtime, self.said = None, _mtime_ns(providers.ENV_FILE), set()
+        self.seen_at = 0.0
 
     def make_observer(self, board: Board) -> Observer:
         return Observer(board)
@@ -763,6 +840,17 @@ class Hub:
         self.notes, self.plan, self.prev = _Notes(self.board), _Plan(self.board), None
         self.cfg_mtime = _mtime_ns(self.dir / "team.json")
         return True
+
+    def _seen(self) -> None:
+        now = time.time()
+        with self.lock:
+            watched = bool(self.subs)
+        if watched and now - self.seen_at >= SEEN_EVERY_S:
+            self.seen_at = now
+            with contextlib.suppress(OSError):
+                path = self.dir / "run" / PAGE_SEEN
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
 
     def _refresh_config(self) -> None:
         mtime = _mtime_ns(self.dir / "team.json")
@@ -787,6 +875,7 @@ class Hub:
                     self._put("env", "{}")
             if self.board is None and not self._attach():
                 return
+            self._seen()
             self._refresh_config()
             evs, snap = self._live()
             if evs or _key(snap) != self.latest_key:
