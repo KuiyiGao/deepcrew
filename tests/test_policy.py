@@ -759,7 +759,7 @@ def test_with_the_sandbox_what_it_cannot_stop_still_asks_and_an_approved_kind_ru
     for command in ("git reset --hard", "git push origin main", "cd src && git checkout -- .", "sudo make install", "rm -rf docs/", "kill 4242",
                     "npm publish", "find . -delete", "git add -A && git commit -m one"):
         assert decide(crew, "Bash", command=command) is None, command
-    own = f"rm -rf {crew.root / 'src' / 'build'}"
+    own = f"rm -rf {(crew.root / 'src' / 'build').as_posix()}"
     assert decide(crew, "Bash", command=own) == {"behavior": "allow", "updatedInput": {"command": own}}
     assert decide(crew, "Bash", command="rm -rf src/build") is None
     r = policy.answer_permission(crew, ask(crew, "git add -A && git commit -m one"), True, always=True)
